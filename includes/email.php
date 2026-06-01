@@ -169,8 +169,31 @@ function pr_account_to_iban($account_str) {
         $number = str_pad($m[2],10,'0',STR_PAD_LEFT);
         $bank   = $m[3];
         $bban   = $bank.$prefix.$number;
-        $check  = str_pad(98-(int)bcmod($bban.'123500','97'),2,'0',STR_PAD_LEFT);
+        $check  = str_pad(98 - pr_numeric_string_mod($bban.'123500','97'), 2, '0', STR_PAD_LEFT);
         return 'CZ'.$check.$bban;
     }
     return $account_str;
+}
+
+/**
+ * Calculate a modulo for an arbitrarily long numeric string.
+ *
+ * Some hosting environments do not enable the bcmath extension. Calling bcmod()
+ * directly while composing an order email can therefore throw a fatal error
+ * before wp_mail() is reached. The iterative calculation keeps QR payment IBAN
+ * generation dependency-free and lets checkout emails send reliably.
+ */
+function pr_numeric_string_mod($number, $mod) {
+    $mod = (int) $mod;
+    if ($mod <= 0) return 0;
+
+    $remainder = 0;
+    $digits = preg_replace('/\D/', '', (string) $number);
+    $length = strlen($digits);
+
+    for ($i = 0; $i < $length; $i++) {
+        $remainder = ($remainder * 10 + (int) $digits[$i]) % $mod;
+    }
+
+    return $remainder;
 }
