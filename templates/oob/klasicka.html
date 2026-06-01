@@ -1,0 +1,78 @@
+<!DOCTYPE html><html lang="cs"><head><meta charset="UTF-8">
+<style>
+  @page{margin:0;size:A4 portrait}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:{{font_family}},Arial,sans-serif;background:#fff;color:#1a1a2e}
+  .page{width:210mm;min-height:297mm;padding:16mm 14mm;display:flex;align-items:flex-start}
+  .ticket{width:100%;border:2px solid {{accent_color}};border-radius:6px;overflow:hidden}
+  .hd{background:{{accent_color}};color:#fff;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+  .hd-left{display:flex;align-items:center;gap:12px;flex:1;min-width:0}
+  .logo{height:40px;width:auto;flex-shrink:0}
+  .org{font-size:10px;opacity:.7;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:2px}
+  .ename{font-size:19px;font-weight:700;line-height:1.2}
+  .sub{font-size:11px;opacity:.75;margin-top:3px}
+  .badge{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);color:#fff;padding:5px 14px;border-radius:99px;font-size:13px;font-weight:700;white-space:nowrap;flex-shrink:0}
+  .body{display:flex;align-items:stretch}
+  .info{flex:1;padding:18px 20px;border-right:1px dashed #d1d5db}
+  .meta{font-size:13px;color:#374151;line-height:2;margin-bottom:12px}
+  .meta strong{font-weight:600}
+  .divider{border:none;border-top:1px solid #e5e7eb;margin:12px 0}
+  .holder-lbl{font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:#9ca3af;margin-bottom:3px}
+  .holder-name{font-size:16px;font-weight:700;color:#1a1a2e}
+  .extras{margin-top:10px;display:flex;flex-direction:column;gap:4px}
+  .extra{font-size:11px;color:#6b7280;display:flex;gap:6px}
+  .extra strong{color:#374151}
+  .ref{margin-top:12px;font-size:10px;color:#9ca3af;font-family:monospace}
+  .qr-col{width:130px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px 12px;gap:8px;background:{{accent_light}}}
+  .qr-col img{width:96px;height:96px;border:3px solid {{accent_color}};padding:4px;background:#fff;border-radius:4px;display:block}
+  .qr-lbl{font-size:9px;color:#6b7280;text-align:center;line-height:1.4}
+  .seq{font-size:11px;font-weight:700;color:{{accent_color}}}
+  .ft{background:#f9fafb;border-top:1px solid #e5e7eb;padding:7px 20px;display:flex;justify-content:space-between;font-size:10px;color:#9ca3af}
+  .ft-tok{font-family:monospace;font-size:9px}
+  .ticket-vip .hd{background:linear-gradient(135deg,#6d28d9,{{accent_color}})}
+  .ticket-vip .badge{background:#f59e0b;border-color:#f59e0b;color:#1a1a2e}
+  @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style></head><body>
+<div class="page">
+<div class="ticket {{is_vip_class}}">
+  <div class="hd">
+    <div class="hd-left">
+      {{logo_img}}
+      <div>
+        <div class="org">{{org_name}}</div>
+        <div class="ename">{{event_name}}</div>
+        {{#if event_subtitle}}<div class="sub">{{event_subtitle}}</div>{{/if}}
+      </div>
+    </div>
+    <div class="badge">{{ticket_type}}</div>
+  </div>
+  <div class="body">
+    <div class="info">
+      <div class="meta">
+        <strong>📅 {{event_date}}</strong><br>
+        {{#if event_location}}📍 {{event_location}}{{/if}}
+      </div>
+      <hr class="divider">
+      <div class="holder-lbl">Držitel vstupenky</div>
+      <div class="holder-name">{{buyer_name}}</div>
+      {{#if_any dress_code ticket_note}}
+      <div class="extras">
+        {{#if dress_code}}<div class="extra"><span>👔</span><span><strong>Dress code:</strong> {{dress_code}}</span></div>{{/if}}
+        {{#if ticket_note}}<div class="extra"><span>ℹ️</span><span>{{ticket_note}}</span></div>{{/if}}
+      </div>
+      {{/if_any}}
+      <div class="ref">Objednávka: {{order_ref}}</div>
+    </div>
+    <div class="qr-col">
+      <img src="{{qr_img_url}}" alt="QR">
+      <div class="seq">č. {{seq_number}}</div>
+      <div class="qr-lbl">Předložte<br>při vstupu</div>
+    </div>
+  </div>
+  <div class="ft">
+    <span>{{org_name}}{{#if org_address}} · {{org_address}}{{/if}}</span>
+    <span class="ft-tok">{{order_ref}}</span>
+  </div>
+</div>
+</div>
+</body></html>

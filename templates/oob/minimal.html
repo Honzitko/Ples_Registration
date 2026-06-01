@@ -1,0 +1,94 @@
+<!DOCTYPE html><html lang="cs"><head><meta charset="UTF-8">
+<style>
+  @page{margin:0;size:A4 portrait}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Trebuchet MS',Verdana,Arial,sans-serif;background:#fff;color:#111}
+  .page{width:210mm;min-height:297mm;padding:20mm 18mm;display:flex;align-items:flex-start}
+
+  .ticket{width:100%;background:#fff;border:1px solid #e5e7eb;border-radius:4px;overflow:hidden}
+  .accent-bar{height:4px;background:{{accent_color}}}
+
+  /* Header — minimal, just text */
+  .hd{padding:20px 24px;display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid #f3f4f6}
+  .org{font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px}
+  .ename{font-size:22px;font-weight:700;color:#111;line-height:1.2}
+  .sub{font-size:12px;color:#6b7280;margin-top:4px;letter-spacing:.3px}
+  .hd-right{display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0;margin-left:16px}
+  .logo{height:36px;width:auto}
+  .badge{border:1.5px solid {{accent_color}};color:{{accent_color}};padding:5px 14px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;border-radius:2px}
+
+  /* Body */
+  .body{display:flex;align-items:stretch}
+  .info{flex:1;padding:20px 24px}
+
+  .meta{display:flex;flex-direction:column;gap:6px;font-size:13px;color:#374151;margin-bottom:16px}
+  .meta-row{display:flex;gap:10px;align-items:baseline}
+  .meta-key{font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:#9ca3af;width:60px;flex-shrink:0}
+  .meta-val{font-weight:600}
+
+  .divider{border:none;border-top:1px solid #f3f4f6;margin:14px 0}
+
+  .holder-lbl{font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#9ca3af;margin-bottom:4px}
+  .holder-name{font-size:18px;font-weight:700;color:#111}
+  .extras{margin-top:12px;display:flex;flex-direction:column;gap:4px}
+  .extra{font-size:11px;color:#6b7280;display:flex;gap:8px}
+  .extra strong{color:#374151}
+  .ref{margin-top:14px;font-size:10px;color:#d1d5db;font-family:monospace}
+
+  .qr-col{width:130px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:18px 14px;gap:8px;border-left:1px solid #f3f4f6}
+  .qr-col img{width:94px;height:94px;border:1.5px solid #e5e7eb;padding:4px;background:#fff;display:block}
+  .qr-lbl{font-size:9px;color:#9ca3af;text-align:center;line-height:1.4}
+  .seq{font-size:11px;font-weight:700;color:{{accent_color}}}
+
+  .ft{background:#fafafa;border-top:1px solid #f3f4f6;padding:8px 24px;display:flex;justify-content:space-between;font-size:10px;color:#d1d5db}
+  .ft-tok{font-family:monospace;font-size:9px}
+
+  /* VIP */
+  .ticket-vip .accent-bar{background:linear-gradient(90deg,{{accent_color}},#7c3aed)}
+  .ticket-vip .badge{background:{{accent_color}};color:#fff}
+  @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style></head><body>
+<div class="page">
+<div class="ticket {{is_vip_class}}">
+  <div class="accent-bar"></div>
+  <div class="hd">
+    <div>
+      <div class="org">{{org_name}}</div>
+      <div class="ename">{{event_name}}</div>
+      {{#if event_subtitle}}<div class="sub">{{event_subtitle}}</div>{{/if}}
+    </div>
+    <div class="hd-right">
+      {{logo_img}}
+      <div class="badge">{{ticket_type}}</div>
+    </div>
+  </div>
+  <div class="body">
+    <div class="info">
+      <div class="meta">
+        <div class="meta-row"><span class="meta-key">Datum</span><span class="meta-val">{{event_date}}</span></div>
+        {{#if event_location}}<div class="meta-row"><span class="meta-key">Místo</span><span class="meta-val">{{event_location}}</span></div>{{/if}}
+      </div>
+      <hr class="divider">
+      <div class="holder-lbl">Držitel vstupenky</div>
+      <div class="holder-name">{{buyer_name}}</div>
+      {{#if_any dress_code ticket_note}}
+      <div class="extras">
+        {{#if dress_code}}<div class="extra"><span>👔</span><span><strong>Dress code:</strong> {{dress_code}}</span></div>{{/if}}
+        {{#if ticket_note}}<div class="extra"><span>ℹ️</span><span>{{ticket_note}}</span></div>{{/if}}
+      </div>
+      {{/if_any}}
+      <div class="ref">{{order_ref}}</div>
+    </div>
+    <div class="qr-col">
+      <img src="{{qr_img_url}}" alt="QR">
+      <div class="seq">č. {{seq_number}}</div>
+      <div class="qr-lbl">Vstup</div>
+    </div>
+  </div>
+  <div class="ft">
+    <span>{{org_name}}{{#if org_address}} · {{org_address}}{{/if}}</span>
+    <span class="ft-tok">{{order_ref}}</span>
+  </div>
+</div>
+</div>
+</body></html>

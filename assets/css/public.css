@@ -1,0 +1,134 @@
+/* Ples Registration — Public CSS */
+:root {
+  --pr-ink: #1a1a2e;
+  --pr-blue: #4f6ef7;
+  --pr-border: #e5e7eb;
+  --pr-bg: #f9fafb;
+  --pr-radius: 12px;
+}
+
+.pr-form-wrap { max-width: 680px; margin: 0 auto; font-family: inherit; }
+
+.pr-event-header { margin-bottom: 24px; }
+.pr-event-title  { font-size: 1.6rem; font-weight: 700; color: var(--pr-ink); margin-bottom: 8px; }
+.pr-event-meta   { display: flex; flex-wrap: wrap; gap: 16px; font-size: .9rem; color: #555; margin-bottom: 8px; }
+.pr-event-desc   { font-size: .95rem; color: #444; line-height: 1.6; }
+
+.pr-section { margin-bottom: 24px; }
+.pr-section-title { font-size: 1rem; font-weight: 700; color: var(--pr-ink); margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid var(--pr-border); }
+
+/* Ticket types */
+.pr-ticket-types { display: flex; flex-direction: column; gap: 10px; }
+.pr-ticket-type  { display: flex; justify-content: space-between; align-items: center;
+                   border: 2px solid var(--pr-border); border-radius: var(--pr-radius); padding: 14px 16px;
+                   transition: border-color .15s; background: #fff; }
+.pr-ticket-type:hover { border-color: var(--pr-blue); }
+.pr-ticket-type.pr-sold-out { opacity: .55; }
+.pr-ticket-type.pr-has-qty  { border-color: var(--pr-blue); background: #f0f4ff; }
+
+.pr-type-name  { font-weight: 700; font-size: 1rem; color: var(--pr-ink); }
+.pr-type-desc  { font-size: .82rem; color: #666; margin-top: 2px; }
+.pr-type-price { font-size: 1.1rem; font-weight: 700; color: var(--pr-blue); margin-top: 4px; }
+.pr-type-avail { font-size: .78rem; color: #888; margin-top: 2px; }
+.pr-type-avail.pr-sold { color: #c00; }
+
+.pr-type-qty { display: flex !important; align-items: center !important; gap: 8px !important; }
+
+.pr-qty-btn {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    min-height: 36px !important;
+    border: 2px solid var(--pr-blue) !important;
+    border-radius: 8px !important;
+    background: #fff !important;
+    color: var(--pr-blue) !important;
+    font-size: 20px !important;
+    line-height: 1 !important;
+    cursor: pointer !important;
+    font-weight: 700 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    text-decoration: none !important;
+    box-shadow: none !important;
+    text-transform: none !important;
+    letter-spacing: normal !important;
+    font-family: inherit !important;
+    transition: all .15s !important;
+}
+.pr-qty-btn:hover,
+.pr-qty-btn:focus {
+    background: var(--pr-blue) !important;
+    color: #fff !important;
+    border-color: var(--pr-blue) !important;
+    outline: none !important;
+}
+.pr-qty-btn:disabled {
+    opacity: .4 !important;
+    cursor: not-allowed !important;
+}
+
+.pr-qty-input {
+    width: 56px !important;
+    min-width: 56px !important;
+    height: 36px !important;
+    text-align: center !important;
+    border: 2px solid var(--pr-border) !important;
+    border-radius: 8px !important;
+    padding: 0 4px !important;
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    background: #fff !important;
+    color: var(--pr-ink) !important;
+    box-shadow: none !important;
+    font-family: inherit !important;
+    -moz-appearance: textfield !important;
+}
+.pr-qty-input::-webkit-outer-spin-button,
+.pr-qty-input::-webkit-inner-spin-button {
+    -webkit-appearance: none !important;
+    margin: 0 !important;
+}
+.pr-sold-badge { font-size: .82rem; color: #c00; font-weight: 600; }
+
+/* Summary */
+.pr-summary { background: var(--pr-bg); border: 1px solid var(--pr-border); border-radius: var(--pr-radius); padding: 16px 18px; margin-bottom: 20px; }
+.pr-summary-lines { margin-bottom: 12px; }
+.pr-summary-line  { display: flex; justify-content: space-between; font-size: .9rem; padding: 5px 0; border-bottom: 1px solid var(--pr-border); }
+.pr-summary-line:last-child { border: none; }
+.pr-summary-total { font-size: 1.1rem; font-weight: 700; text-align: right; color: var(--pr-ink); padding-top: 8px; border-top: 2px solid var(--pr-ink); }
+
+/* Buyer form */
+.pr-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.pr-field label { display: block; font-size: .82rem; font-weight: 600; color: #444; margin-bottom: 4px; }
+.pr-field input  { width: 100%; padding: 10px 12px; border: 2px solid var(--pr-border); border-radius: 8px;
+                   font-size: .95rem; outline: none; transition: border-color .15s; }
+.pr-field input:focus { border-color: var(--pr-blue); }
+
+/* Submit */
+.pr-submit-wrap { text-align: center; }
+.pr-btn-submit  { background: var(--pr-blue); color: #fff; border: none; border-radius: 10px;
+                  padding: 16px 36px; font-size: 1.05rem; font-weight: 700; cursor: pointer;
+                  transition: background .15s; width: 100%; }
+.pr-btn-submit:hover { background: #3b5ae0; }
+.pr-submit-note { font-size: .8rem; color: #888; margin-top: 10px; }
+
+/* Messages */
+.pr-form-msg { padding: 14px 18px; border-radius: var(--pr-radius); font-size: .95rem; margin-top: 16px; }
+.pr-msg-success { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
+.pr-msg-error   { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+.pr-error { color: #c00; font-style: italic; }
+
+.pr-order-confirm { background: #f0f4ff; border: 2px solid var(--pr-blue); border-radius: var(--pr-radius);
+                    padding: 20px 24px; margin-top: 16px; }
+.pr-order-confirm h3 { margin-bottom: 10px; color: var(--pr-ink); }
+.pr-confirm-row { display: flex; justify-content: space-between; font-size: .9rem; padding: 5px 0; border-bottom: 1px solid #d0d9ff; }
+.pr-confirm-row:last-child { border: none; }
+
+@media(max-width:520px) {
+  .pr-form-grid { grid-template-columns: 1fr; }
+  .pr-ticket-type { flex-direction: column; align-items: flex-start; gap: 10px; }
+}

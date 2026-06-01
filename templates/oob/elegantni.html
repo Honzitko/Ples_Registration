@@ -1,0 +1,94 @@
+<!DOCTYPE html><html lang="cs"><head><meta charset="UTF-8">
+<style>
+  @page{margin:0;size:A4 portrait}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:Georgia,'Times New Roman',serif;background:#fff;color:#1c1208}
+  .page{width:210mm;min-height:297mm;padding:18mm 16mm;display:flex;align-items:flex-start}
+
+  .ticket{width:100%;border:1px solid #c8922a;box-shadow:0 0 0 4px #f5ead6,0 0 0 5px #c8922a;border-radius:4px;overflow:hidden}
+
+  /* Gold header */
+  .hd{background:linear-gradient(135deg,#1c1208 0%,#2e1f0a 60%,#3d2b10 100%);color:#fff;padding:20px 24px;position:relative;overflow:hidden}
+  .hd::before{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:repeating-linear-gradient(45deg,transparent,transparent 10px,rgba(200,146,42,.05) 10px,rgba(200,146,42,.05) 20px)}
+  .hd-inner{position:relative;display:flex;justify-content:space-between;align-items:center;gap:16px}
+  .hd-left{display:flex;align-items:center;gap:14px;flex:1;min-width:0}
+  .logo{height:44px;width:auto;flex-shrink:0}
+  .org{font-size:10px;color:#c8922a;text-transform:uppercase;letter-spacing:2px;margin-bottom:4px;font-family:Arial,sans-serif}
+  .ename{font-size:22px;font-weight:700;line-height:1.2;font-style:italic;color:#f5e6c8}
+  .sub{font-size:12px;color:#c8922a;margin-top:4px;font-family:Arial,sans-serif;letter-spacing:.5px}
+  .badge{border:2px solid #c8922a;color:#c8922a;padding:6px 16px;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;font-family:Arial,sans-serif;flex-shrink:0}
+
+  /* Gold ornament divider */
+  .ornament{background:#c8922a;height:3px;background:linear-gradient(90deg,transparent,#c8922a 20%,#f5d78a 50%,#c8922a 80%,transparent)}
+
+  /* Body */
+  .body{display:flex;background:#fffdf8}
+  .info{flex:1;padding:20px 24px;border-right:1px solid #e8d5a3}
+  .meta{font-size:13px;color:#4a3520;line-height:2.2;font-family:Arial,sans-serif}
+  .divider{border:none;border-top:1px solid #e8d5a3;margin:14px 0}
+  .holder-lbl{font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#c8922a;margin-bottom:4px;font-family:Arial,sans-serif}
+  .holder-name{font-size:18px;font-weight:700;color:#1c1208;font-style:italic}
+  .extras{margin-top:12px;display:flex;flex-direction:column;gap:5px}
+  .extra{font-size:11px;color:#6b5030;display:flex;gap:8px;font-family:Arial,sans-serif}
+  .extra strong{color:#3d2b10;font-style:normal}
+  .ref{margin-top:14px;font-size:10px;color:#b8a070;font-family:monospace}
+
+  .qr-col{width:136px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:18px 14px;gap:10px;background:#fdf6e8;border-left:1px solid #e8d5a3}
+  .qr-col img{width:98px;height:98px;border:2px solid #c8922a;padding:5px;background:#fff;display:block}
+  .qr-lbl{font-size:9px;color:#9a7a50;text-align:center;line-height:1.5;font-family:Arial,sans-serif}
+  .seq{font-size:12px;font-weight:700;color:#c8922a;font-family:Arial,sans-serif;letter-spacing:.5px}
+
+  .ft{background:#f5ead6;border-top:1px solid #e8d5a3;padding:8px 24px;display:flex;justify-content:space-between;align-items:center;font-size:10px;color:#9a7a50;font-family:Arial,sans-serif}
+  .ft-tok{font-family:monospace;font-size:9px}
+
+  /* VIP — deeper gold */
+  .ticket-vip .hd{background:linear-gradient(135deg,#0f0a02 0%,#1c1208 50%,#2e1f0a 100%)}
+  .ticket-vip .badge{background:#c8922a;color:#fff;border-color:#c8922a}
+  @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style></head><body>
+<div class="page">
+<div class="ticket {{is_vip_class}}">
+  <div class="hd">
+    <div class="hd-inner">
+      <div class="hd-left">
+        {{logo_img}}
+        <div>
+          <div class="org">{{org_name}}</div>
+          <div class="ename">{{event_name}}</div>
+          {{#if event_subtitle}}<div class="sub">{{event_subtitle}}</div>{{/if}}
+        </div>
+      </div>
+      <div class="badge">{{ticket_type}}</div>
+    </div>
+  </div>
+  <div class="ornament"></div>
+  <div class="body">
+    <div class="info">
+      <div class="meta">
+        📅 &nbsp;{{event_date}}<br>
+        {{#if event_location}}📍 &nbsp;{{event_location}}{{/if}}
+      </div>
+      <hr class="divider">
+      <div class="holder-lbl">Držitel vstupenky</div>
+      <div class="holder-name">{{buyer_name}}</div>
+      {{#if_any dress_code ticket_note}}
+      <div class="extras">
+        {{#if dress_code}}<div class="extra"><span>👔</span><span><strong>Dress code:</strong> {{dress_code}}</span></div>{{/if}}
+        {{#if ticket_note}}<div class="extra"><span>ℹ️</span><span>{{ticket_note}}</span></div>{{/if}}
+      </div>
+      {{/if_any}}
+      <div class="ref">Objednávka: {{order_ref}}</div>
+    </div>
+    <div class="qr-col">
+      <img src="{{qr_img_url}}" alt="QR">
+      <div class="seq">č. {{seq_number}}</div>
+      <div class="qr-lbl">Předložte<br>při vstupu</div>
+    </div>
+  </div>
+  <div class="ft">
+    <span>{{org_name}}{{#if org_address}} · {{org_address}}{{/if}}</span>
+    <span class="ft-tok">{{order_ref}}</span>
+  </div>
+</div>
+</div>
+</body></html>

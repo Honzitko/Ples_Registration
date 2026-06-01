@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<!--
+╔══════════════════════════════════════════════════════════════╗
+║  PLES REGISTRATION — ŠABLONA VSTUPENKY                       ║
+║  Upravujte CSS a HTML libovolně.                             ║
+║  Dostupné proměnné:                                          ║
+║                                                              ║
+║  {{org_name}}       — název organizace                       ║
+║  {{org_address}}    — adresa organizace                      ║
+║  {{event_name}}     — název akce                             ║
+║  {{event_date}}     — datum a čas akce                       ║
+║  {{event_location}} — místo konání                           ║
+║  {{event_subtitle}} — podtitulek (z nastavení)               ║
+║  {{dress_code}}     — dress code (z nastavení)               ║
+║  {{ticket_note}}    — vlastní poznámka (z nastavení)         ║
+║  {{ticket_type}}    — typ vstupenky (Normální / VIP…)        ║
+║  {{buyer_name}}     — jméno kupujícího                       ║
+║  {{order_ref}}      — číslo objednávky                       ║
+║  {{seq_number}}     — pořadové číslo vstupenky               ║
+║  {{qr_img_url}}     — URL QR kódu (src pro <img>)            ║
+║  {{logo_img}}       — <img> tag loga (nebo prázdné)          ║
+║  {{accent_color}}   — barva z nastavení (hex, např. #1a1a2e) ║
+║  {{accent_light}}   — světlá varianta accent barvy           ║
+║  {{font_family}}    — font z nastavení                       ║
+║  {{is_vip_class}}   — "ticket-vip" pokud typ obsahuje "vip"  ║
+╚══════════════════════════════════════════════════════════════╝
+-->
+<style>
+  @page { margin: 0; size: A4 portrait; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: {{font_family}}, Arial, sans-serif;
+    background: #fff;
+    color: #1a1a2e;
+  }
+
+  /* ── Page wrapper — jeden ticket na stránce ── */
+  .ticket-page {
+    width: 210mm;
+    min-height: 297mm;
+    padding: 16mm 14mm;
+    display: flex;
+    align-items: flex-start;
+  }
+
+  /* ── Ticket card ── */
+  .ticket {
+    width: 100%;
+    border: 2px solid {{accent_color}};
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 12px rgba(0,0,0,.12);
+  }
+
+  /* ── Header ── */
+  .ticket-header {
+    background: {{accent_color}};
+    color: #fff;
+    padding: 14px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .ticket-header-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .ticket-logo {
+    flex-shrink: 0;
+    height: 44px;
+    width: auto;
+  }
+
+  .ticket-header-text { min-width: 0; }
+
+  .ticket-org {
+    font-size: 10px;
+    opacity: .75;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 3px;
+  }
+
+  .ticket-event-name {
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.15;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .ticket-subtitle {
+    font-size: 11px;
+    opacity: .8;
+    margin-top: 3px;
+  }
+
+  .ticket-type-badge {
+    flex-shrink: 0;
+    background: rgba(255,255,255,.2);
+    border: 1px solid rgba(255,255,255,.4);
+    color: #fff;
+    padding: 5px 14px;
+    border-radius: 99px;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  /* VIP override */
+  .ticket-vip .ticket-header {
+    background: linear-gradient(135deg, #6d28d9, {{accent_color}});
+  }
+  .ticket-vip .ticket-type-badge {
+    background: #f59e0b;
+    border-color: #f59e0b;
+    color: #1a1a2e;
+  }
+
+  /* ── Body ── */
+  .ticket-body {
+    display: flex;
+    align-items: stretch;
+    background: #fff;
+  }
+
+  .ticket-info {
+    flex: 1;
+    padding: 18px 20px;
+    border-right: 1px dashed #d1d5db;
+  }
+
+  .ticket-meta {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 6px 10px;
+    font-size: 13px;
+    color: #374151;
+    margin-bottom: 14px;
+  }
+
+  .ticket-meta .meta-icon { font-size: 14px; }
+  .ticket-meta .meta-val  { font-weight: 600; }
+
+  .ticket-divider {
+    border: none;
+    border-top: 1px solid #e5e7eb;
+    margin: 12px 0;
+  }
+
+  .ticket-holder-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #9ca3af;
+    margin-bottom: 4px;
+  }
+
+  .ticket-holder-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1a1a2e;
+  }
+
+  .ticket-extras {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .ticket-extra-item {
+    font-size: 11px;
+    color: #6b7280;
+    display: flex;
+    gap: 6px;
+    align-items: baseline;
+  }
+
+  .ticket-extra-item strong {
+    color: #374151;
+    font-weight: 600;
+  }
+
+  .ticket-ref {
+    margin-top: 14px;
+    font-size: 10px;
+    color: #9ca3af;
+    font-family: monospace;
+  }
+
+  /* ── QR section ── */
+  .ticket-qr {
+    width: 130px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 16px 12px;
+    gap: 8px;
+    background: {{accent_light}};
+  }
+
+  .ticket-qr img {
+    width: 96px;
+    height: 96px;
+    border: 3px solid {{accent_color}};
+    padding: 4px;
+    background: #fff;
+    border-radius: 4px;
+    display: block;
+  }
+
+  .ticket-qr-label {
+    font-size: 9px;
+    color: #6b7280;
+    text-align: center;
+    line-height: 1.4;
+  }
+
+  .ticket-seq {
+    font-size: 11px;
+    font-weight: 700;
+    color: {{accent_color}};
+  }
+
+  /* ── Footer ── */
+  .ticket-footer {
+    background: #f9fafb;
+    border-top: 1px solid #e5e7eb;
+    padding: 7px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 10px;
+    color: #9ca3af;
+  }
+
+  .ticket-footer-token {
+    font-family: monospace;
+    font-size: 9px;
+    letter-spacing: .3px;
+  }
+
+  @media print {
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+
+<div class="ticket-page">
+  <div class="ticket {{is_vip_class}}">
+
+    <!-- HEADER -->
+    <div class="ticket-header">
+      <div class="ticket-header-left">
+        {{logo_img}}
+        <div class="ticket-header-text">
+          <div class="ticket-org">{{org_name}}</div>
+          <div class="ticket-event-name">{{event_name}}</div>
+          {{#if event_subtitle}}<div class="ticket-subtitle">{{event_subtitle}}</div>{{/if}}
+        </div>
+      </div>
+      <div class="ticket-type-badge">{{ticket_type}}</div>
+    </div>
+
+    <!-- BODY -->
+    <div class="ticket-body">
+
+      <div class="ticket-info">
+
+        <!-- Event details -->
+        <div class="ticket-meta">
+          <span class="meta-icon">📅</span>
+          <span class="meta-val">{{event_date}}</span>
+          {{#if event_location}}
+          <span class="meta-icon">📍</span>
+          <span class="meta-val">{{event_location}}</span>
+          {{/if}}
+        </div>
+
+        <hr class="ticket-divider">
+
+        <!-- Holder -->
+        <div class="ticket-holder-label">Držitel vstupenky</div>
+        <div class="ticket-holder-name">{{buyer_name}}</div>
+
+        <!-- Optional extras -->
+        {{#if_any dress_code ticket_note}}
+        <div class="ticket-extras">
+          {{#if dress_code}}
+          <div class="ticket-extra-item">
+            <span>👔</span>
+            <span><strong>Dress code:</strong> {{dress_code}}</span>
+          </div>
+          {{/if}}
+          {{#if ticket_note}}
+          <div class="ticket-extra-item">
+            <span>ℹ️</span>
+            <span>{{ticket_note}}</span>
+          </div>
+          {{/if}}
+        </div>
+        {{/if_any}}
+
+        <div class="ticket-ref">
+          Objednávka: {{order_ref}}
+        </div>
+
+      </div>
+
+      <!-- QR -->
+      <div class="ticket-qr">
+        <img src="{{qr_img_url}}" alt="QR kód vstupenky">
+        <div class="ticket-seq">č. {{seq_number}}</div>
+        <div class="ticket-qr-label">Předložte<br>při vstupu</div>
+      </div>
+
+    </div>
+
+    <!-- FOOTER -->
+    <div class="ticket-footer">
+      <span>{{org_name}}{{#if org_address}} · {{org_address}}{{/if}}</span>
+      <span class="ticket-footer-token">{{order_ref}}</span>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>
