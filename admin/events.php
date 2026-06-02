@@ -8,6 +8,7 @@ function pr_admin_events_page() {
 
     // Repair tables
     if ( isset($_GET['action']) && $_GET['action']==='repair' && check_admin_referer('pr_repair') ) {
+        delete_transient('pr_schema_ok');
         pr_create_tables();
         $missing = pr_get_missing_tables();
         $repair_status = empty($missing) ? 'success' : 'failed';
