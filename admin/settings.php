@@ -4,6 +4,8 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 function pr_admin_settings_page() {
     if (!current_user_can('manage_options')) wp_die('Přístup odepřen.');
     $msg = '';
+    $bcc_admin_email_error = '';
+    $bcc_admin_email_value = '';
 
     if (isset($_POST['pr_settings_nonce']) && wp_verify_nonce($_POST['pr_settings_nonce'],'pr_save_settings')) {
         $fields = ['pr_org_name','pr_org_address','pr_org_ico','pr_bank_account','pr_bank_name',
@@ -12,6 +14,17 @@ function pr_admin_settings_page() {
                    'pr_ticket_accent','pr_ticket_font','pr_ticket_subtitle','pr_ticket_dress_code',
                    'pr_ticket_note','pr_default_template_id'];
         foreach($fields as $f) update_option($f, sanitize_text_field($_POST[$f]??''));
+
+        $bcc_admin_email_raw = trim(wp_unslash($_POST['pr_bcc_admin_email']??''));
+        $bcc_admin_email_value = sanitize_email($bcc_admin_email_raw);
+        if ($bcc_admin_email_raw !== '' && (!$bcc_admin_email_value || !is_email($bcc_admin_email_value))) {
+            $bcc_admin_email_value = sanitize_text_field($bcc_admin_email_raw);
+            $bcc_admin_email_error = 'Zadejte platnou e-mailovou adresu pro skrytou kopii, nebo pole ponechte prázdné.';
+            $msg = '<div class="notice notice-error"><p>Nastavení bylo uloženo kromě e-mailu pro skrytou kopii. Zkontrolujte zvýrazněné pole.</p></div>';
+        } else {
+            update_option('pr_bcc_admin_email', $bcc_admin_email_value);
+        }
+
         update_option('pr_smtp_enabled',      isset($_POST['pr_smtp_enabled'])?'1':'0');
         if (!empty($_POST['pr_smtp_pass'])) update_option('pr_smtp_pass', sanitize_text_field($_POST['pr_smtp_pass']));
 
@@ -76,6 +89,9 @@ function pr_admin_settings_page() {
     }
 
     $o = function($k, $d='') { return get_option($k, $d); };
+    if (!$bcc_admin_email_value) {
+        $bcc_admin_email_value = $o('pr_bcc_admin_email');
+    }
     ?>
     <div class="wrap pr-admin">
         <h1>⚙️ Nastavení</h1>
@@ -103,6 +119,13 @@ function pr_admin_settings_page() {
             <table class="form-table">
                 <tr><th>Jméno odesílatele</th><td><input type="text" name="pr_email_from_name" value="<?php echo esc_attr($o('pr_email_from_name')); ?>" class="regular-text"></td></tr>
                 <tr><th>E-mail odesílatele</th><td><input type="email" name="pr_email_from" value="<?php echo esc_attr($o('pr_email_from')); ?>" class="regular-text"></td></tr>
+                <tr><th>BCC admin email</th><td>
+                    <input type="email" name="pr_bcc_admin_email" value="<?php echo esc_attr($bcc_admin_email_value); ?>" class="regular-text" aria-invalid="<?php echo $bcc_admin_email_error ? 'true' : 'false'; ?>">
+                    <p class="description">Volitelné. Pokud vyplníte platnou adresu, administrátor obdrží skrytou kopii každého potvrzovacího e-mailu odeslaného kupujícímu.</p>
+                    <?php if ($bcc_admin_email_error): ?>
+                    <p style="color:#b32d2e;margin-top:4px"><strong><?php echo esc_html($bcc_admin_email_error); ?></strong></p>
+                    <?php endif; ?>
+                </td></tr>
                 <tr><th>Patička</th><td><input type="text" name="pr_email_footer" value="<?php echo esc_attr($o('pr_email_footer')); ?>" class="regular-text" placeholder="Děkujeme za Vaši podporu!"></td></tr>
             </table>
 

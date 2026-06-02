@@ -32,8 +32,14 @@ function pr_send_order_email($order, $event, $items) {
 
     $subject = 'Vstupenky a platební instrukce – ' . $event->name;
     $body    = pr_order_email_html($order, $event, $items, $tickets_html, !empty($attachments));
+    $headers = pr_mail_headers();
 
-    return wp_mail([$recipient], $subject, $body, pr_mail_headers(), $attachments);
+    $bcc_admin_email = sanitize_email(get_option('pr_bcc_admin_email', ''));
+    if ($bcc_admin_email && is_email($bcc_admin_email)) {
+        $headers[] = 'Bcc: ' . $bcc_admin_email;
+    }
+
+    return wp_mail([$recipient], $subject, $body, $headers, $attachments);
 }
 
 /**
