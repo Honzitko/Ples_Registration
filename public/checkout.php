@@ -16,6 +16,68 @@ function pr_is_valid_phone($phone) {
     return (bool) preg_match('/^(?:\+\d{12}|\+\d{3} \d{3} \d{3} \d{3}|\d{9}|\d{3} \d{3} \d{3})$/', $phone);
 }
 
+function pr_db_error_is_unknown_column($error) {
+    return stripos((string) $error, 'unknown column') !== false;
+}
+
+function pr_build_order_insert_payload($event_id, $order_ref, $var_sym, $name, $email, $phone, $street, $city, $postcode, $total) {
+    $data = [
+        'event_id'    => $event_id,
+        'order_ref'   => $order_ref,
+        'var_symbol'  => $var_sym,
+        'buyer_name'  => $name,
+        'buyer_email' => $email,
+        'buyer_phone' => $phone,
+        'total_price' => $total,
+        'status'      => 'pending',
+    ];
+    $formats = ['%d', '%s', '%s', '%s', '%s', '%s', '%f', '%s'];
+
+    if (pr_orders_have_address_columns()) {
+        $data = array_merge(
+            array_slice($data, 0, 6, true),
+            [
+                'buyer_street'   => $street,
+                'buyer_city'     => $city,
+                'buyer_postcode' => $postcode,
+            ],
+            array_slice($data, 6, null, true)
+        );
+        $formats = ['%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%f', '%s'];
+    }
+
+    return [$data, $formats];
+}
+
+function pr_insert_order_with_schema_retry($event_id, $order_ref, $var_sym, $name, $email, $phone, $street, $city, $postcode, $total) {
+    global $wpdb;
+
+    list($data, $formats) = pr_build_order_insert_payload($event_id, $order_ref, $var_sym, $name, $email, $phone, $street, $city, $postcode, $total);
+    $inserted = $wpdb->insert(PR_ORDERS, $data, $formats);
+
+    if ($inserted !== false) {
+        return [true, (int) $wpdb->insert_id, ''];
+    }
+
+    $first_error = $wpdb->last_error;
+    if (!pr_db_error_is_unknown_column($first_error)) {
+        return [false, 0, $first_error];
+    }
+
+    error_log('PR order insert hit unknown column, running table migration and retrying: ' . $first_error);
+    pr_create_tables();
+    pr_reset_orders_address_columns_cache();
+
+    list($data, $formats) = pr_build_order_insert_payload($event_id, $order_ref, $var_sym, $name, $email, $phone, $street, $city, $postcode, $total);
+    $inserted = $wpdb->insert(PR_ORDERS, $data, $formats);
+
+    if ($inserted !== false) {
+        return [true, (int) $wpdb->insert_id, ''];
+    }
+
+    return [false, 0, $wpdb->last_error ?: $first_error];
+}
+
 function pr_ajax_submit_order() {
     // Suppress PHP notice/deprecation output that would corrupt JSON response
     // (e.g. WP Featherlight and other plugins echo warnings)
@@ -28,8 +90,6 @@ function pr_ajax_submit_order() {
 
     check_ajax_referer('pr_ajax','nonce');
     global $wpdb;
-
-    pr_repair_order_schema();
 
     $event_id = (int)($_POST['event_id']??0);
     $name     = sanitize_text_field($_POST['buyer_name']??'');
@@ -76,27 +136,29 @@ function pr_ajax_submit_order() {
     $order_ref = pr_generate_order_ref();
     $var_sym   = pr_generate_var_symbol();
 
-    $inserted = $wpdb->insert(PR_ORDERS,[
-        'event_id'   => $event_id,
-        'order_ref'  => $order_ref,
-        'var_symbol' => $var_sym,
-        'buyer_name' => $name,
-        'buyer_email'=> $email,
-        'buyer_phone'=> $phone,
-        'buyer_street'=> $street,
-        'buyer_city'=> $city,
-        'buyer_postcode'=> $postcode,
-        'total_price'=> $total,
-        'status'     => 'pending',
-    ],['%d','%s','%s','%s','%s','%s','%s','%s','%s','%f','%s']);
-    $order_id = (int) $wpdb->insert_id;
+    list($inserted, $order_id, $db_error) = pr_insert_order_with_schema_retry(
+        $event_id,
+        $order_ref,
+        $var_sym,
+        $name,
+        $email,
+        $phone,
+        $street,
+        $city,
+        $postcode,
+        $total
+    );
 
-    if ($inserted === false || !$order_id) {
+    if (!$inserted || !$order_id) {
         foreach ($lines as $l) {
             pr_release_type($l['type']->id, $l['qty']);
         }
-        error_log('PR order insert failed: ' . $wpdb->last_error);
-        pr_send_error('Objednávku se nepodařilo uložit. Zkuste to prosím znovu.');
+        error_log('PR order insert failed: ' . $db_error);
+        $message = 'Objednávku se nepodařilo uložit. Zkuste to prosím znovu.';
+        if (current_user_can('manage_options') && $db_error) {
+            $message .= ' Chyba databáze: ' . $db_error;
+        }
+        pr_send_error($message);
     }
 
     // Create order items
