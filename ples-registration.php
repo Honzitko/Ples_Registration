@@ -3,7 +3,7 @@
  * Plugin Name: Ples Registration
  * Plugin URI:  https://softemy.eu
  * Description: Správa registrací a vstupenek na plesy. Více typů vstupenek, PDF lístky, ruční párování plateb, check-in s PIN.
- * Version:     1.2.2
+ * Version:     1.2.3
  * Author:      Softemy
  * Text Domain: ples-registration
  * Requires PHP: 7.2
@@ -20,7 +20,7 @@ if ( version_compare( PHP_VERSION, '7.2', '<' ) ) {
     return;
 }
 
-define( 'PR_VERSION',      '1.2.2' );
+define( 'PR_VERSION',      '1.2.3' );
 define( 'PR_DIR',          plugin_dir_path( __FILE__ ) );
 define( 'PR_URL',          plugin_dir_url( __FILE__ ) );
 define( 'PR_EVENTS',       $GLOBALS['wpdb']->prefix . 'pr_events' );

@@ -64,6 +64,42 @@ function pr_format_date($date) {
     return date_i18n('j. n. Y H:i',strtotime($date));
 }
 
+/**
+ * Check whether the orders table currently has all address columns.
+ *
+ * The result is cached for the duration of the request to avoid repeated
+ * information-schema lookups while rendering/saving orders. Pass true to
+ * clear the cache after an in-request schema migration.
+ */
+function pr_orders_have_address_columns($reset_cache = false) {
+    static $has_columns = null;
+
+    if ($reset_cache) {
+        $has_columns = null;
+    }
+
+    if ($has_columns !== null) {
+        return $has_columns;
+    }
+
+    foreach (['buyer_street', 'buyer_city', 'buyer_postcode'] as $column) {
+        if (!pr_db_column_exists(PR_ORDERS, $column)) {
+            $has_columns = false;
+            return $has_columns;
+        }
+    }
+
+    $has_columns = true;
+    return $has_columns;
+}
+
+/**
+ * Clear the cached orders address column check.
+ */
+function pr_reset_orders_address_columns_cache() {
+    pr_orders_have_address_columns(true);
+}
+
 function pr_reserve_type($type_id,$qty) {
     global $wpdb;
     return (bool)$wpdb->query($wpdb->prepare(
