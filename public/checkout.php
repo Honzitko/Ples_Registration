@@ -58,15 +58,11 @@ function pr_ensure_orders_table_exists() {
     static $checked = false;
 
     if ($checked) {
-        return;
+        return true;
     }
 
-    if (!pr_db_table_exists(PR_ORDERS)) {
-        pr_create_tables();
-        pr_reset_orders_address_columns_cache();
-    }
-
-    $checked = true;
+    $checked = pr_ensure_checkout_tables_exist();
+    return $checked;
 }
 
 
@@ -104,7 +100,7 @@ function pr_insert_order_with_schema_retry($event_id, $order_ref, $var_sym, $nam
     }
 
     error_log('PR order insert hit missing schema, running table migration and retrying: ' . $first_error);
-    pr_create_tables();
+    pr_ensure_checkout_tables_exist();
     pr_reset_orders_address_columns_cache();
 
     list($data, $formats) = pr_build_order_insert_payload($event_id, $order_ref, $var_sym, $name, $email, $phone, $street, $city, $postcode, $total);
@@ -130,7 +126,9 @@ function pr_ajax_submit_order() {
     check_ajax_referer('pr_ajax','nonce');
     global $wpdb;
 
-    pr_ensure_orders_table_exists();
+    if (!pr_ensure_orders_table_exists()) {
+        pr_send_error('Databázové tabulky objednávek se nepodařilo vytvořit. Kontaktujte prosím pořadatele.');
+    }
 
     $event_id = (int)($_POST['event_id']??0);
     $name     = sanitize_text_field($_POST['buyer_name']??'');
