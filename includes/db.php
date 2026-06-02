@@ -9,10 +9,24 @@ function pr_quote_db_identifier($identifier) {
 }
 
 /**
+ * Check whether a database table exists.
+ */
+function pr_db_table_exists($table) {
+    global $wpdb;
+
+    return $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like($table))) === $table;
+}
+
+/**
  * Check whether a table column exists.
  */
 function pr_db_column_exists($table, $column) {
     global $wpdb;
+
+    if (!pr_db_table_exists($table)) {
+        return false;
+    }
+
     $table_sql = pr_quote_db_identifier($table);
     return (bool) $wpdb->get_var($wpdb->prepare("SHOW COLUMNS FROM {$table_sql} LIKE %s", $column));
 }
@@ -50,7 +64,7 @@ function pr_create_tables() {
     $c = $wpdb->get_charset_collate();
     require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 
-    dbDelta("CREATE TABLE IF NOT EXISTS " . PR_EVENTS . " (
+    dbDelta("CREATE TABLE " . PR_EVENTS . " (
         id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
         name        VARCHAR(255) NOT NULL,
         description TEXT,
@@ -61,7 +75,7 @@ function pr_create_tables() {
         PRIMARY KEY (id)
     ) $c;");
 
-    dbDelta("CREATE TABLE IF NOT EXISTS " . PR_TICKET_TYPES . " (
+    dbDelta("CREATE TABLE " . PR_TICKET_TYPES . " (
         id           INT UNSIGNED NOT NULL AUTO_INCREMENT,
         event_id     INT UNSIGNED NOT NULL,
         name         VARCHAR(100) NOT NULL,
@@ -76,7 +90,7 @@ function pr_create_tables() {
         KEY event_id (event_id)
     ) $c;");
 
-    dbDelta("CREATE TABLE IF NOT EXISTS " . PR_ORDERS . " (
+    dbDelta("CREATE TABLE " . PR_ORDERS . " (
         id           INT UNSIGNED NOT NULL AUTO_INCREMENT,
         event_id     INT UNSIGNED NOT NULL,
         order_ref    VARCHAR(64) NOT NULL UNIQUE,
@@ -100,7 +114,7 @@ function pr_create_tables() {
         KEY var_symbol (var_symbol)
     ) $c;");
 
-    dbDelta("CREATE TABLE IF NOT EXISTS " . PR_ORDER_ITEMS . " (
+    dbDelta("CREATE TABLE " . PR_ORDER_ITEMS . " (
         id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
         order_id   INT UNSIGNED NOT NULL,
         type_id    INT UNSIGNED NOT NULL,
@@ -111,7 +125,7 @@ function pr_create_tables() {
         KEY order_id (order_id)
     ) $c;");
 
-    dbDelta("CREATE TABLE IF NOT EXISTS " . PR_TICKETS . " (
+    dbDelta("CREATE TABLE " . PR_TICKETS . " (
         id            INT UNSIGNED NOT NULL AUTO_INCREMENT,
         order_id      INT UNSIGNED NOT NULL,
         order_item_id INT UNSIGNED NOT NULL,
@@ -128,7 +142,7 @@ function pr_create_tables() {
         KEY event_id (event_id)
     ) $c;");
 
-    dbDelta("CREATE TABLE IF NOT EXISTS " . PR_TEMPLATES . " (
+    dbDelta("CREATE TABLE " . PR_TEMPLATES . " (
         id           INT UNSIGNED NOT NULL AUTO_INCREMENT,
         name         VARCHAR(100) NOT NULL,
         description  VARCHAR(255),

@@ -61,10 +61,7 @@ function pr_ensure_orders_table_exists() {
         return;
     }
 
-    global $wpdb;
-
-    $table = $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like(PR_ORDERS)));
-    if ($table !== PR_ORDERS) {
+    if (!pr_db_table_exists(PR_ORDERS)) {
         pr_create_tables();
         pr_reset_orders_address_columns_cache();
     }
