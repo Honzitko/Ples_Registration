@@ -140,6 +140,13 @@ function pr_order_email_html($order, $event, $items, $tickets_html = '', $has_pd
     <?php echo $tickets_html; ?>
     <?php endif; ?>
 
+    <?php if(!empty($order->buyer_street) || !empty($order->buyer_city) || !empty($order->buyer_postcode)): ?>
+    <div class="section-title">👤 Kontaktní údaje</div>
+    <p style="font-size:13px;margin:0 0 16px">
+      <?php echo esc_html(trim(($order->buyer_street ?? '').', '.($order->buyer_city ?? '').' '.($order->buyer_postcode ?? ''), ', ')); ?>
+    </p>
+    <?php endif; ?>
+
     <div class="section-title">📋 Souhrn objednávky</div>
     <table class="items">
       <tr><th>Typ vstupenky</th><th>Počet</th><th>Cena/ks</th><th>Celkem</th></tr>

@@ -12,6 +12,10 @@ function pr_send_error($message) {
     wp_send_json_error(['message' => $message]);
 }
 
+function pr_is_valid_phone($phone) {
+    return (bool) preg_match('/^(?:\+\d{12}|\+\d{3} \d{3} \d{3} \d{3}|\d{9}|\d{3} \d{3} \d{3})$/', $phone);
+}
+
 function pr_ajax_submit_order() {
     // Suppress PHP notice/deprecation output that would corrupt JSON response
     // (e.g. WP Featherlight and other plugins echo warnings)
@@ -29,6 +33,9 @@ function pr_ajax_submit_order() {
     $name     = sanitize_text_field($_POST['buyer_name']??'');
     $email    = sanitize_email($_POST['buyer_email']??'');
     $phone    = sanitize_text_field($_POST['buyer_phone']??'');
+    $street   = sanitize_text_field($_POST['buyer_street']??'');
+    $city     = sanitize_text_field($_POST['buyer_city']??'');
+    $postcode = sanitize_text_field($_POST['buyer_postcode']??'');
 
     $event = pr_get_event($event_id);
     if (!$event || $event->status !== 'active')
@@ -36,6 +43,12 @@ function pr_ajax_submit_order() {
 
     if (!$name || !is_email($email))
         pr_send_error('Vyplňte prosím jméno a platnou e-mailovou adresu.');
+
+    if (!$street || !$city || !$postcode)
+        pr_send_error('Vyplňte prosím kompletní adresu.');
+
+    if ($phone && !pr_is_valid_phone($phone))
+        pr_send_error('Telefon zadejte ve formátu +XXXXXXXXXXXX, +XXX XXX XXX XXX, XXXXXXXXX nebo XXX XXX XXX.');
 
     // Parse quantities
     $qtys = [];
@@ -68,9 +81,12 @@ function pr_ajax_submit_order() {
         'buyer_name' => $name,
         'buyer_email'=> $email,
         'buyer_phone'=> $phone,
+        'buyer_street'=> $street,
+        'buyer_city'=> $city,
+        'buyer_postcode'=> $postcode,
         'total_price'=> $total,
         'status'     => 'pending',
-    ],['%d','%s','%s','%s','%s','%s','%f','%s']);
+    ],['%d','%s','%s','%s','%s','%s','%s','%s','%s','%f','%s']);
     $order_id = $wpdb->insert_id;
 
     // Create order items

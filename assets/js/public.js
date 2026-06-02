@@ -68,15 +68,22 @@ jQuery(function($){
     var $btn    = $form.find('.pr-btn-submit');
     var $msg    = $('#pr-msg-'+eventId);
 
-    var name  = $form.find('[name="buyer_name"]').val().trim();
-    var email = $form.find('[name="buyer_email"]').val().trim();
-    if (!name || !email) {
-      showMsg($msg, 'Vyplňte prosím jméno a e-mail.', 'error'); return;
+    var name     = $form.find('[name="buyer_name"]').val().trim();
+    var email    = $form.find('[name="buyer_email"]').val().trim();
+    var phone    = $form.find('[name="buyer_phone"]').val().trim();
+    var street   = $form.find('[name="buyer_street"]').val().trim();
+    var city     = $form.find('[name="buyer_city"]').val().trim();
+    var postcode = $form.find('[name="buyer_postcode"]').val().trim();
+    if (!name || !email || !street || !city || !postcode) {
+      showMsg($msg, 'Vyplňte prosím jméno, e-mail a adresu.', 'error'); return;
+    }
+    if (phone && !isValidPhone(phone)) {
+      showMsg($msg, 'Telefon zadejte ve formátu +XXXXXXXXXXXX, +XXX XXX XXX XXX, XXXXXXXXX nebo XXX XXX XXX.', 'error'); return;
     }
 
     var data = { action:'pr_submit_order', nonce: PR.nonce, event_id: eventId,
-                 buyer_name: name, buyer_email: email,
-                 buyer_phone: $form.find('[name="buyer_phone"]').val().trim(), qty: {} };
+                 buyer_name: name, buyer_email: email, buyer_phone: phone,
+                 buyer_street: street, buyer_city: city, buyer_postcode: postcode, qty: {} };
 
     $form.find('.pr-qty-input').each(function(){
       var qty = parseInt($(this).val())||0;
@@ -123,6 +130,10 @@ jQuery(function($){
       showMsg($msg, msg, 'error');
     });
   });
+
+  function isValidPhone(phone) {
+    return /^(?:\+\d{12}|\+\d{3} \d{3} \d{3} \d{3}|\d{9}|\d{3} \d{3} \d{3})$/.test(phone);
+  }
 
   function showMsg($el, text, type) {
     $el.removeClass('pr-msg-success pr-msg-error')
