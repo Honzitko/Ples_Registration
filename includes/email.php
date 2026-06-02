@@ -6,6 +6,11 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  * Contains: vstupenky (PDF příloha) + platební instrukce + QR platba.
  */
 function pr_send_order_email($order, $event, $items) {
+    $recipient = pr_order_recipient_email($order);
+    if (!$recipient) {
+        throw new InvalidArgumentException('Objednávka nemá platnou e-mailovou adresu příjemce.');
+    }
+
     // Generate tickets first
     pr_generate_tickets($order->id);
 
@@ -28,7 +33,17 @@ function pr_send_order_email($order, $event, $items) {
     $subject = 'Vstupenky a platební instrukce – ' . $event->name;
     $body    = pr_order_email_html($order, $event, $items, $tickets_html, !empty($attachments));
 
-    return wp_mail($order->buyer_email, $subject, $body, pr_mail_headers(), $attachments);
+    return wp_mail([$recipient], $subject, $body, pr_mail_headers(), $attachments);
+}
+
+/**
+ * Return a validated recipient address for an order email.
+ */
+function pr_order_recipient_email($order) {
+    if (!$order || empty($order->buyer_email)) return '';
+
+    $email = sanitize_email($order->buyer_email);
+    return is_email($email) ? $email : '';
 }
 
 /**
