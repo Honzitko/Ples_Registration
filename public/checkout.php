@@ -16,8 +16,13 @@ function pr_is_valid_phone($phone) {
     return (bool) preg_match('/^(?:\+\d{12}|\+\d{3} \d{3} \d{3} \d{3}|\d{9}|\d{3} \d{3} \d{3})$/', $phone);
 }
 
-function pr_db_error_is_unknown_column($error) {
-    return stripos((string) $error, 'unknown column') !== false;
+function pr_db_error_is_schema_missing($error) {
+    $error = (string) $error;
+
+    return stripos($error, 'unknown column') !== false
+        || preg_match('/table\b.*doesn\'t exist/i', $error)
+        || stripos($error, 'no such table') !== false
+        || stripos($error, 'base table or view not found') !== false;
 }
 
 function pr_build_order_insert_payload($event_id, $order_ref, $var_sym, $name, $email, $phone, $street, $city, $postcode, $total) {
@@ -60,11 +65,11 @@ function pr_insert_order_with_schema_retry($event_id, $order_ref, $var_sym, $nam
     }
 
     $first_error = $wpdb->last_error;
-    if (!pr_db_error_is_unknown_column($first_error)) {
+    if (!pr_db_error_is_schema_missing($first_error)) {
         return [false, 0, $first_error];
     }
 
-    error_log('PR order insert hit unknown column, running table migration and retrying: ' . $first_error);
+    error_log('PR order insert hit missing schema, running table migration and retrying: ' . $first_error);
     pr_create_tables();
     pr_reset_orders_address_columns_cache();
 
