@@ -74,7 +74,7 @@ function pr_ajax_submit_order() {
     $order_ref = pr_generate_order_ref();
     $var_sym   = pr_generate_var_symbol();
 
-    $wpdb->insert(PR_ORDERS,[
+    $inserted = $wpdb->insert(PR_ORDERS,[
         'event_id'   => $event_id,
         'order_ref'  => $order_ref,
         'var_symbol' => $var_sym,
@@ -87,7 +87,15 @@ function pr_ajax_submit_order() {
         'total_price'=> $total,
         'status'     => 'pending',
     ],['%d','%s','%s','%s','%s','%s','%s','%s','%s','%f','%s']);
-    $order_id = $wpdb->insert_id;
+    $order_id = (int) $wpdb->insert_id;
+
+    if ($inserted === false || !$order_id) {
+        foreach ($lines as $l) {
+            pr_release_type($l['type']->id, $l['qty']);
+        }
+        error_log('PR order insert failed: ' . $wpdb->last_error);
+        pr_send_error('Objednávku se nepodařilo uložit. Zkuste to prosím znovu.');
+    }
 
     // Create order items
     foreach ($lines as $l) {
@@ -100,11 +108,30 @@ function pr_ajax_submit_order() {
         ],['%d','%d','%s','%f','%d']);
     }
 
-    // Send email immediately — wrapped in try-catch so AJAX never fails on email problems
-    $order = pr_get_order($order_id);
-    if ($order) {
-        // Use the already validated submitted address for this request so wp_mail()
-        // always receives the same recipient the buyer entered in the form.
+    // Send email immediately — wrapped in try-catch so AJAX never fails on email problems.
+    // Build the object from the just-validated form data instead of depending only
+    // on an immediate read after write. Some hosts/cache layers can return a stale
+    // row right after insert, which made the email recipient look empty even though
+    // the order was saved with the correct address.
+    $order = (object) [
+        'id'             => $order_id,
+        'event_id'       => $event_id,
+        'order_ref'      => $order_ref,
+        'var_symbol'     => $var_sym,
+        'buyer_name'     => $name,
+        'buyer_email'    => $email,
+        'buyer_phone'    => $phone,
+        'buyer_street'   => $street,
+        'buyer_city'     => $city,
+        'buyer_postcode' => $postcode,
+        'total_price'    => $total,
+        'status'         => 'pending',
+    ];
+
+    $stored_order = pr_get_order($order_id);
+    if ($stored_order) {
+        $order = (object) array_merge((array) $order, (array) $stored_order);
+        // Keep the already validated submitted address for the actual recipient.
         $order->buyer_email = $email;
     }
     $items = pr_get_order_items($order_id);
