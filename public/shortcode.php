@@ -89,7 +89,19 @@ function pr_shortcode($atts) {
                     </div>
                     <div class="pr-field">
                         <label>Telefon</label>
-                        <input type="tel" name="buyer_phone" placeholder="+420 123 456 789">
+                        <input type="tel" name="buyer_phone" placeholder="+420 123 456 789" pattern="(\+[0-9]{12}|\+[0-9]{3} [0-9]{3} [0-9]{3} [0-9]{3}|[0-9]{9}|[0-9]{3} [0-9]{3} [0-9]{3})" title="Zadejte telefon ve formátu +XXXXXXXXXXXX, +XXX XXX XXX XXX, XXXXXXXXX nebo XXX XXX XXX.">
+                    </div>
+                    <div class="pr-field">
+                        <label>Ulice a čp *</label>
+                        <input type="text" name="buyer_street" required placeholder="Dlouhá 123">
+                    </div>
+                    <div class="pr-field">
+                        <label>Město *</label>
+                        <input type="text" name="buyer_city" required placeholder="Praha">
+                    </div>
+                    <div class="pr-field">
+                        <label>PSČ *</label>
+                        <input type="text" name="buyer_postcode" required placeholder="110 00">
                     </div>
                 </div>
             </div>
