@@ -29,6 +29,8 @@ function pr_ajax_submit_order() {
     check_ajax_referer('pr_ajax','nonce');
     global $wpdb;
 
+    pr_repair_order_schema();
+
     $event_id = (int)($_POST['event_id']??0);
     $name     = sanitize_text_field($_POST['buyer_name']??'');
     $email    = sanitize_email($_POST['buyer_email']??'');
