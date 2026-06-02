@@ -58,13 +58,13 @@ function pr_build_order_insert_payload($event_id, $order_ref, $var_sym, $name, $
 }
 
 function pr_ensure_orders_table_exists() {
-    static $checked = false;
+    static $checked = null;
 
-    if ($checked) {
-        return true;
+    if ($checked !== null) {
+        return $checked;
     }
 
-    $checked = pr_ensure_checkout_tables_exist();
+    $checked = pr_bootstrap_checkout_schema_if_needed();
     return $checked;
 }
 
@@ -126,12 +126,12 @@ function pr_ajax_submit_order() {
     while (ob_get_level()) ob_end_clean();
     ob_start();
 
-    check_ajax_referer('pr_ajax','nonce');
-    global $wpdb;
-
     if (!pr_ensure_orders_table_exists()) {
         pr_send_error('Databázové tabulky objednávek se nepodařilo vytvořit. Kontaktujte prosím pořadatele.');
     }
+
+    check_ajax_referer('pr_ajax','nonce');
+    global $wpdb;
 
     $event_id = (int)($_POST['event_id']??0);
     $name     = sanitize_text_field($_POST['buyer_name']??'');
