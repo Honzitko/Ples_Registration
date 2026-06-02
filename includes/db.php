@@ -181,25 +181,85 @@ function pr_create_or_update_table($table, $schema) {
 
     require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 
+    $report = [
+        'table'          => $table,
+        'existed_before' => pr_db_table_exists($table),
+        'created'        => false,
+        'exists_after'   => false,
+        'dbdelta_error'  => '',
+        'fallback_error' => '',
+    ];
+
     dbDelta($schema);
+    if ($wpdb->last_error) {
+        $report['dbdelta_error'] = $wpdb->last_error;
+    }
 
     if (!pr_db_table_exists($table)) {
         $fallback_schema = preg_replace('/^\s*CREATE\s+TABLE\s+/i', 'CREATE TABLE IF NOT EXISTS ', $schema, 1);
         $wpdb->query($fallback_schema);
+        if ($wpdb->last_error) {
+            $report['fallback_error'] = $wpdb->last_error;
+        }
     }
 
-    return pr_db_table_exists($table);
+    $report['exists_after'] = pr_db_table_exists($table);
+    $report['created'] = !$report['existed_before'] && $report['exists_after'];
+
+    if (!$report['exists_after']) {
+        error_log(
+            'PR database table repair failed for ' . $table .
+            '. dbDelta error: ' . ($report['dbdelta_error'] ?: 'none') .
+            '. fallback error: ' . ($report['fallback_error'] ?: 'none')
+        );
+    }
+
+    return $report;
 }
 
 function pr_create_tables() {
     global $wpdb;
     $schemas = pr_get_table_schemas($wpdb->get_charset_collate());
+    $report = [];
 
     foreach ($schemas as $table => $schema) {
-        pr_create_or_update_table($table, $schema);
+        $report[$table] = pr_create_or_update_table($table, $schema);
     }
 
     pr_repair_order_schema();
+    pr_save_table_repair_report($report);
+
+    return $report;
+}
+
+function pr_get_plugin_tables() {
+    return [PR_EVENTS, PR_TICKET_TYPES, PR_ORDERS, PR_ORDER_ITEMS, PR_TICKETS, PR_TEMPLATES];
+}
+
+function pr_get_missing_tables() {
+    $missing = [];
+
+    foreach (pr_get_plugin_tables() as $table) {
+        if (!pr_db_table_exists($table)) {
+            $missing[] = $table;
+        }
+    }
+
+    return $missing;
+}
+
+function pr_save_table_repair_report($report) {
+    $missing = pr_get_missing_tables();
+    update_option('pr_last_table_repair_report', [
+        'time'    => current_time('mysql'),
+        'report'  => $report,
+        'missing' => $missing,
+    ], false);
+}
+
+function pr_get_last_table_repair_report() {
+    $report = get_option('pr_last_table_repair_report');
+    return is_array($report) ? $report : [];
 }
 
 /**
@@ -223,12 +283,14 @@ function pr_ensure_checkout_tables_exist() {
         return true;
     }
 
+    $repair_report = [];
     foreach ($missing_tables as $table) {
-        pr_create_or_update_table($table, $schemas[$table]);
+        $repair_report[$table] = pr_create_or_update_table($table, $schemas[$table]);
     }
 
     pr_repair_order_schema();
     pr_reset_orders_address_columns_cache();
+    pr_save_table_repair_report($repair_report);
 
     foreach ($required_tables as $table) {
         if (!pr_db_table_exists($table)) {
