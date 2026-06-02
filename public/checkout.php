@@ -54,6 +54,24 @@ function pr_build_order_insert_payload($event_id, $order_ref, $var_sym, $name, $
     return [$data, $formats];
 }
 
+function pr_ensure_orders_table_exists() {
+    static $checked = false;
+
+    if ($checked) {
+        return;
+    }
+
+    global $wpdb;
+
+    $table = $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like(PR_ORDERS)));
+    if ($table !== PR_ORDERS) {
+        pr_create_tables();
+        pr_reset_orders_address_columns_cache();
+    }
+
+    $checked = true;
+}
+
 function pr_insert_order_with_schema_retry($event_id, $order_ref, $var_sym, $name, $email, $phone, $street, $city, $postcode, $total) {
     global $wpdb;
 
@@ -95,6 +113,8 @@ function pr_ajax_submit_order() {
 
     check_ajax_referer('pr_ajax','nonce');
     global $wpdb;
+
+    pr_ensure_orders_table_exists();
 
     $event_id = (int)($_POST['event_id']??0);
     $name     = sanitize_text_field($_POST['buyer_name']??'');
