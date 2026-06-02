@@ -111,9 +111,9 @@ function pr_ajax_submit_order() {
     $name     = sanitize_text_field($_POST['buyer_name']??'');
     $email    = sanitize_email($_POST['buyer_email']??'');
     $phone    = sanitize_text_field($_POST['buyer_phone']??'');
-    $street   = sanitize_text_field($_POST['buyer_street']??'');
-    $city     = sanitize_text_field($_POST['buyer_city']??'');
-    $postcode = sanitize_text_field($_POST['buyer_postcode']??'');
+    $street   = trim(sanitize_text_field($_POST['buyer_street']??''));
+    $city     = trim(sanitize_text_field($_POST['buyer_city']??''));
+    $postcode = trim(sanitize_text_field($_POST['buyer_postcode']??''));
 
     $event = pr_get_event($event_id);
     if (!$event || $event->status !== 'active')
@@ -122,11 +122,21 @@ function pr_ajax_submit_order() {
     if (!$name || !is_email($email))
         pr_send_error('Vyplňte prosím jméno a platnou e-mailovou adresu.');
 
-    if (!$street || !$city || !$postcode)
-        pr_send_error('Vyplňte prosím kompletní adresu.');
-
     if ($phone && !pr_is_valid_phone($phone))
         pr_send_error('Telefon zadejte ve formátu +XXXXXXXXXXXX, +XXX XXX XXX XXX, XXXXXXXXX nebo XXX XXX XXX.');
+
+    $street_length = function_exists('mb_strlen') ? mb_strlen($street) : strlen($street);
+    if ($street_length < 2)
+        pr_send_error('Vyplňte prosím ulici.');
+
+    $city_length = function_exists('mb_strlen') ? mb_strlen($city) : strlen($city);
+    if ($city_length < 2)
+        pr_send_error('Vyplňte prosím město.');
+
+    if (!preg_match('/^\d{3}\s?\d{2}$/', $postcode))
+        pr_send_error('Neplatné PSČ. Použijte formát 123 45 nebo 12345.');
+
+    $postcode = substr(str_replace(' ', '', $postcode), 0, 3) . ' ' . substr(str_replace(' ', '', $postcode), 3, 2);
 
     // Parse quantities
     $qtys = [];
