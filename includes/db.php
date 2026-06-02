@@ -34,6 +34,8 @@ function pr_repair_order_schema() {
         'buyer_street'   => "ALTER TABLE {$table_sql} ADD COLUMN `buyer_street` VARCHAR(255) NOT NULL DEFAULT '' AFTER `buyer_phone`",
         'buyer_city'     => "ALTER TABLE {$table_sql} ADD COLUMN `buyer_city` VARCHAR(120) NOT NULL DEFAULT '' AFTER `buyer_street`",
         'buyer_postcode' => "ALTER TABLE {$table_sql} ADD COLUMN `buyer_postcode` VARCHAR(20) NOT NULL DEFAULT '' AFTER `buyer_city`",
+        'email_status'   => "ALTER TABLE {$table_sql} ADD COLUMN `email_status` ENUM('pending','sent','failed') NOT NULL DEFAULT 'pending' AFTER `status`",
+        'email_sent_at'  => "ALTER TABLE {$table_sql} ADD COLUMN `email_sent_at` DATETIME NULL AFTER `email_status`",
     ];
 
     foreach ($columns as $column => $sql) {
@@ -87,6 +89,8 @@ function pr_create_tables() {
         buyer_postcode VARCHAR(20) NOT NULL DEFAULT '',
         total_price  DECIMAL(10,2) NOT NULL,
         status       ENUM('pending','paid','cancelled') NOT NULL DEFAULT 'pending',
+        email_status ENUM('pending','sent','failed') NOT NULL DEFAULT 'pending',
+        email_sent_at DATETIME,
         payment_note VARCHAR(255),
         paid_at      DATETIME,
         created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

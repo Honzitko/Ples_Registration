@@ -6,6 +6,10 @@ function pr_admin_orders_page() {
     global $wpdb;
     $msg = '';
 
+    if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like(PR_ORDERS))) === PR_ORDERS) {
+        pr_repair_order_schema();
+    }
+
     // Mark as paid
     if (isset($_POST['pr_mark_paid_nonce']) && wp_verify_nonce($_POST['pr_mark_paid_nonce'],'pr_mark_paid')) {
         $oid  = (int)($_POST['order_id']??0);
@@ -35,8 +39,12 @@ function pr_admin_orders_page() {
         if ($order) {
             $event = pr_get_event($order->event_id);
             $items = pr_get_order_items($oid);
-            pr_send_order_email($order, $event, $items);
-            $msg = '<div class="notice notice-success"><p>✉️ E-mail znovu odeslán na '.esc_html($order->buyer_email).'.</p></div>';
+            $email_result = pr_send_order_email_and_record($order, $event, $items);
+            if ($email_result['sent']) {
+                $msg = '<div class="notice notice-success"><p>✉️ E-mail znovu odeslán na '.esc_html($order->buyer_email).'.</p></div>';
+            } else {
+                $msg = '<div class="notice notice-error"><p>❌ E-mail se nepodařilo odeslat na '.esc_html($order->buyer_email).'. '.esc_html($email_result['error']).'</p></div>';
+            }
         }
     }
 
@@ -45,13 +53,19 @@ function pr_admin_orders_page() {
         pr_export_orders_csv(); exit;
     }
 
-    $event_id = (int)($_GET['event']??0);
-    $status   = sanitize_text_field($_GET['status']??'');
-    $search   = sanitize_text_field($_GET['s']??'');
+    $event_id     = (int)($_GET['event']??0);
+    $status       = sanitize_text_field($_GET['status']??'');
+    $email_status = sanitize_text_field($_GET['email_status']??'');
+    $search       = sanitize_text_field($_GET['s']??'');
+
+    if (!in_array($email_status, ['pending', 'sent', 'failed'], true)) {
+        $email_status = '';
+    }
 
     $where = 'WHERE 1=1'; $args = [];
-    if ($event_id) { $where .= ' AND o.event_id=%d'; $args[]=$event_id; }
-    if ($status)   { $where .= ' AND o.status=%s';   $args[]=$status; }
+    if ($event_id)     { $where .= ' AND o.event_id=%d';     $args[]=$event_id; }
+    if ($status)       { $where .= ' AND o.status=%s';       $args[]=$status; }
+    if ($email_status) { $where .= ' AND o.email_status=%s'; $args[]=$email_status; }
     if ($search)   { $where .= ' AND (o.buyer_name LIKE %s OR o.buyer_email LIKE %s OR o.order_ref=%s OR o.var_symbol=%s)';
         $args[]="%$search%"; $args[]="%$search%"; $args[]=$search; $args[]=$search; }
 
@@ -106,9 +120,15 @@ function pr_admin_orders_page() {
                 <option value="paid"      <?php selected($status,'paid'); ?>>✅ Zaplaceno</option>
                 <option value="cancelled" <?php selected($status,'cancelled'); ?>>❌ Zrušeno</option>
             </select>
+            <select name="email_status">
+                <option value="">– Všechny e-maily –</option>
+                <option value="pending" <?php selected($email_status,'pending'); ?>>⏳ Čeká</option>
+                <option value="sent"    <?php selected($email_status,'sent'); ?>>✅ Odesláno</option>
+                <option value="failed"  <?php selected($email_status,'failed'); ?>>❌ Selhalo</option>
+            </select>
             <input type="text" name="s" value="<?php echo esc_attr($search); ?>" placeholder="Jméno / e-mail / VS…" style="width:200px">
             <button type="submit" class="button">Filtrovat</button>
-            <a href="<?php echo wp_nonce_url(add_query_arg(['export'=>1,'event'=>$event_id,'status'=>$status]),'pr_export'); ?>" class="button">⬇ CSV</a>
+            <a href="<?php echo wp_nonce_url(add_query_arg(['export'=>1,'event'=>$event_id,'status'=>$status,'email_status'=>$email_status]),'pr_export'); ?>" class="button">⬇ CSV</a>
         </form>
 
         <table class="wp-list-table widefat fixed" id="pr-orders-table">
@@ -119,12 +139,13 @@ function pr_admin_orders_page() {
                 <th style="width:85px">VS</th>
                 <th style="width:85px">Částka</th>
                 <th style="width:90px">Stav</th>
+                <th style="width:120px">E-mail</th>
                 <th style="width:90px">Zaplaceno</th>
                 <th>Akce</th>
             </tr></thead>
             <tbody>
             <?php if(empty($orders)): ?>
-                <tr><td colspan="8" style="padding:20px;color:#888">Žádné objednávky.</td></tr>
+                <tr><td colspan="9" style="padding:20px;color:#888">Žádné objednávky.</td></tr>
             <?php else: foreach($orders as $o):
                 $items        = pr_get_order_items($o->id);
                 $item_summary = implode(', ', array_map(function($i){ return $i->quantity.'× '.$i->type_name; }, $items));
@@ -156,6 +177,11 @@ function pr_admin_orders_page() {
                         <?php if($o->payment_note): ?>
                         <br><small style="color:#888;font-style:italic"><?php echo esc_html($o->payment_note); ?></small>
                         <?php endif; ?>
+                    </td>
+                    <td>
+                        <span class="pr-badge pr-email-status-<?php echo esc_attr($o->email_status ?? 'pending'); ?>">
+                            <?php echo esc_html(pr_order_email_status_label($o)); ?>
+                        </span>
                     </td>
                     <td>
                         <?php if($o->status==='pending'): ?>
@@ -193,12 +219,13 @@ function pr_export_orders_csv() {
     header('Content-Disposition: attachment; filename="objednavky-'.date('Y-m-d').'.csv"');
     $f = fopen('php://output','w');
     fprintf($f,chr(0xEF).chr(0xBB).chr(0xBF));
-    fputcsv($f,['Objednávka','Akce','Jméno','E-mail','Telefon','Ulice a čp','Město','PSČ','VS','Částka','Stav','Poznámka','Datum'],';');
+    fputcsv($f,['Objednávka','Akce','Jméno','E-mail','Telefon','Ulice a čp','Město','PSČ','VS','Částka','Stav','Stav e-mailu','E-mail čas','Poznámka','Datum'],';');
     foreach($orders as $o) {
         fputcsv($f,[$o->order_ref,$o->event_name,$o->buyer_name,$o->buyer_email,$o->buyer_phone??'',
                     $o->buyer_street??'',$o->buyer_city??'',$o->buyer_postcode??'',
-                    $o->var_symbol,$o->total_price,$o->status,$o->payment_note??'',
-                    date('j.n.Y H:i',strtotime($o->created_at))],';');
+                    $o->var_symbol,$o->total_price,$o->status,$o->email_status??'pending',
+                    !empty($o->email_sent_at)?date('j.n.Y H:i',strtotime($o->email_sent_at)):'',
+                    $o->payment_note??'',date('j.n.Y H:i',strtotime($o->created_at))],';');
     }
     fclose($f);
 }
