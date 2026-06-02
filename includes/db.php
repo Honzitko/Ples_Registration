@@ -1,6 +1,48 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) exit;
 
+/**
+ * Safely quote a database identifier for raw SQL fragments.
+ */
+function pr_quote_db_identifier($identifier) {
+    return '`' . str_replace('`', '``', (string) $identifier) . '`';
+}
+
+/**
+ * Check whether a table column exists.
+ */
+function pr_db_column_exists($table, $column) {
+    global $wpdb;
+    $table_sql = pr_quote_db_identifier($table);
+    return (bool) $wpdb->get_var($wpdb->prepare("SHOW COLUMNS FROM {$table_sql} LIKE %s", $column));
+}
+
+/**
+ * Repair columns added after the initial orders table release.
+ *
+ * Some sites already have the orders table from an older plugin version. When
+ * the address fields are missing, checkout inserts fail with an unknown-column
+ * database error and users only see the generic “order could not be saved”
+ * message. Running this lightweight repair before checkout keeps existing
+ * installations compatible even if activation/dbDelta was skipped.
+ */
+function pr_repair_order_schema() {
+    global $wpdb;
+
+    $table_sql = pr_quote_db_identifier(PR_ORDERS);
+    $columns = [
+        'buyer_street'   => "ALTER TABLE {$table_sql} ADD COLUMN `buyer_street` VARCHAR(255) NOT NULL DEFAULT '' AFTER `buyer_phone`",
+        'buyer_city'     => "ALTER TABLE {$table_sql} ADD COLUMN `buyer_city` VARCHAR(120) NOT NULL DEFAULT '' AFTER `buyer_street`",
+        'buyer_postcode' => "ALTER TABLE {$table_sql} ADD COLUMN `buyer_postcode` VARCHAR(20) NOT NULL DEFAULT '' AFTER `buyer_city`",
+    ];
+
+    foreach ($columns as $column => $sql) {
+        if (!pr_db_column_exists(PR_ORDERS, $column)) {
+            $wpdb->query($sql);
+        }
+    }
+}
+
 function pr_create_tables() {
     global $wpdb;
     $c = $wpdb->get_charset_collate();
@@ -96,6 +138,8 @@ function pr_create_tables() {
         PRIMARY KEY (id),
         KEY oob_key (oob_key)
     ) $c;");
+
+    pr_repair_order_schema();
 }
 
 function pr_set_defaults() {
