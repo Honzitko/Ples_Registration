@@ -57,6 +57,15 @@ function pr_get_ticket_by_token($token) {
          WHERE t.qr_token=%s",$token));
 }
 
+function pr_db_error_is_schema_missing($error) {
+    $error = (string) $error;
+
+    return stripos($error, 'unknown column') !== false
+        || preg_match('/table\b.*doesn\'t exist/i', $error)
+        || stripos($error, 'no such table') !== false
+        || stripos($error, 'base table or view not found') !== false;
+}
+
 function pr_format_price($amount) {
     return number_format((float)$amount,0,',',' ').' Kč';
 }
@@ -98,6 +107,92 @@ function pr_orders_have_address_columns($reset_cache = false) {
  */
 function pr_reset_orders_address_columns_cache() {
     pr_orders_have_address_columns(true);
+}
+
+/**
+ * Persist the latest order e-mail delivery outcome.
+ */
+function pr_record_order_email_status($order_id, $sent) {
+    global $wpdb;
+
+    $order_id = (int) $order_id;
+    if (!$order_id) {
+        return false;
+    }
+
+    $status = $sent ? 'sent' : 'failed';
+    $data = [
+        'email_status'  => $status,
+        'email_sent_at' => current_time('mysql'),
+    ];
+
+    $updated = $wpdb->update(PR_ORDERS, $data, ['id' => $order_id], ['%s', '%s'], ['%d']);
+    if ($updated !== false) {
+        return true;
+    }
+
+    if (pr_db_error_is_schema_missing($wpdb->last_error)) {
+        pr_repair_order_schema();
+        $updated = $wpdb->update(PR_ORDERS, $data, ['id' => $order_id], ['%s', '%s'], ['%d']);
+        return $updated !== false;
+    }
+
+    return false;
+}
+
+/**
+ * Send an order e-mail while capturing wp_mail() errors and saving delivery status.
+ */
+function pr_send_order_email_and_record($order, $event, $items) {
+    $email_sent  = false;
+    $email_error = '';
+
+    $mail_error_handler = function($wp_error) use (&$email_error) {
+        if (is_wp_error($wp_error)) {
+            $email_error = $wp_error->get_error_message();
+        } else {
+            $email_error = (string) $wp_error;
+        }
+        error_log('PR wp_mail failed: ' . $email_error);
+    };
+    add_action('wp_mail_failed', $mail_error_handler);
+
+    try {
+        $email_sent = (bool) pr_send_order_email($order, $event, $items);
+        if (!$email_sent && !$email_error) {
+            $email_error = 'wp_mail() vrátil false bez konkrétní chyby (často: chybí SMTP / mail() blokován hostingem)';
+            error_log('PR email failed: ' . $email_error);
+        }
+    } catch (Throwable $e) {
+        $email_error = $e->getMessage();
+        error_log('PR email exception: ' . $email_error);
+    }
+
+    remove_action('wp_mail_failed', $mail_error_handler);
+    pr_record_order_email_status($order->id ?? 0, $email_sent);
+
+    return [
+        'sent'  => $email_sent,
+        'error' => $email_error,
+    ];
+}
+
+function pr_order_email_status_label($order) {
+    $status = $order->email_status ?? 'pending';
+
+    if ($status === 'sent') {
+        $label = '✅ Odesláno';
+        if (!empty($order->email_sent_at)) {
+            $label .= ' ' . date_i18n('j. n. Y H:i', strtotime($order->email_sent_at));
+        }
+        return $label;
+    }
+
+    if ($status === 'failed') {
+        return '❌ Selhalo';
+    }
+
+    return '⏳ Čeká';
 }
 
 function pr_reserve_type($type_id,$qty) {

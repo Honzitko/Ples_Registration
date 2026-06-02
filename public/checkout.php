@@ -16,15 +16,6 @@ function pr_is_valid_phone($phone) {
     return (bool) preg_match('/^(?:\+\d{12}|\+\d{3} \d{3} \d{3} \d{3}|\d{9}|\d{3} \d{3} \d{3})$/', $phone);
 }
 
-function pr_db_error_is_schema_missing($error) {
-    $error = (string) $error;
-
-    return stripos($error, 'unknown column') !== false
-        || preg_match('/table\b.*doesn\'t exist/i', $error)
-        || stripos($error, 'no such table') !== false
-        || stripos($error, 'base table or view not found') !== false;
-}
-
 function pr_build_order_insert_payload($event_id, $order_ref, $var_sym, $name, $email, $phone, $street, $city, $postcode, $total) {
     $data = [
         'event_id'    => $event_id,
@@ -224,27 +215,9 @@ function pr_ajax_submit_order() {
         $order->buyer_email = $email;
     }
     $items = pr_get_order_items($order_id);
-    $email_sent  = false;
-    $email_error = '';
-
-    // Capture wp_mail failure reason
-    $mail_error_handler = function($wp_error) use (&$email_error) {
-        $email_error = $wp_error->get_error_message();
-        error_log('PR wp_mail failed: ' . $email_error);
-    };
-    add_action('wp_mail_failed', $mail_error_handler);
-
-    try {
-        $email_sent = pr_send_order_email($order, $event, $items);
-        if (!$email_sent && !$email_error) {
-            $email_error = 'wp_mail() vrátil false bez konkrétní chyby (často: chybí SMTP / mail() blokován hostingem)';
-            error_log('PR email failed: ' . $email_error);
-        }
-    } catch (Throwable $e) {
-        $email_error = $e->getMessage();
-        error_log('PR email exception: ' . $email_error);
-    }
-    remove_action('wp_mail_failed', $mail_error_handler);
+    $email_result = pr_send_order_email_and_record($order, $event, $items);
+    $email_sent   = $email_result['sent'];
+    $email_error  = $email_result['error'];
 
     // Discard any output captured during processing (PHP notices, warnings from other plugins)
     while (ob_get_level()) ob_end_clean();
