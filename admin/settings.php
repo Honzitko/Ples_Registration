@@ -64,6 +64,38 @@ function pr_admin_settings_page() {
         if (!$msg) $msg = '<div class="notice notice-success"><p>Nastavení uloženo.</p></div>';
     }
 
+    if (isset($_POST['pr_db_maintenance_nonce']) && wp_verify_nonce($_POST['pr_db_maintenance_nonce'], 'pr_db_maintenance')) {
+        $db_action = sanitize_key($_POST['pr_db_action'] ?? '');
+
+        if ($db_action === 'repair_create') {
+            pr_create_tables();
+            $missing = pr_get_missing_tables();
+            $msg = empty($missing)
+                ? '<div class="notice notice-success"><p>✅ Databázové tabulky byly opraveny / vytvořeny.</p></div>'
+                : '<div class="notice notice-error"><p>❌ Oprava databáze selhala. Stále chybí: <code>' . esc_html(implode(', ', $missing)) . '</code></p></div>';
+        } elseif ($db_action === 'clean_orders') {
+            $confirm = sanitize_text_field($_POST['pr_db_confirm'] ?? '');
+            if ($confirm !== 'CLEAN') {
+                $msg = '<div class="notice notice-error"><p>Pro vyčištění objednávek napište potvrzení <code>CLEAN</code>.</p></div>';
+            } else {
+                $report = pr_clean_checkout_data();
+                $msg = empty($report['errors'])
+                    ? '<div class="notice notice-success"><p>✅ Objednávky, položky objednávek a vstupenky byly smazány. Počty prodaných vstupenek byly vynulovány.</p></div>'
+                    : '<div class="notice notice-error"><p>❌ Čištění objednávek skončilo s chybou: <code>' . esc_html(implode('; ', $report['errors'])) . '</code></p></div>';
+            }
+        } elseif ($db_action === 'reset_database') {
+            $confirm = sanitize_text_field($_POST['pr_db_confirm'] ?? '');
+            if ($confirm !== 'DELETE') {
+                $msg = '<div class="notice notice-error"><p>Pro kompletní reset databáze napište potvrzení <code>DELETE</code>.</p></div>';
+            } else {
+                $report = pr_reset_plugin_database();
+                $msg = empty($report['missing'])
+                    ? '<div class="notice notice-success"><p>✅ Databázové tabulky pluginu byly smazány a znovu vytvořeny prázdné.</p></div>'
+                    : '<div class="notice notice-error"><p>❌ Reset databáze selhal. Stále chybí: <code>' . esc_html(implode(', ', $report['missing'])) . '</code></p></div>';
+            }
+        }
+    }
+
     // Save custom template
     // Preview ticket
     if (isset($_GET['pr_preview_ticket']) && check_admin_referer('pr_preview')) {
@@ -263,6 +295,73 @@ function pr_admin_settings_page() {
             <p class="description" style="margin-bottom:10px">Odešle ukázkový e-mail se vstupenkami a platebními instrukcemi (bez PDF přílohy).</p>
             <?php submit_button('Odeslat testovací e-mail','secondary'); ?>
         </form>
+
+        <hr style="margin:32px 0">
+
+        <h2>🛠️ Databáze pluginu</h2>
+        <p>Tyto nástroje slouží k opravě chybějících tabulek nebo k vyčištění testovacích dat. Destruktivní akce vyžadují ruční potvrzení.</p>
+
+        <?php
+        $missing_tables = pr_get_missing_tables();
+        $last_maintenance_report = pr_get_last_database_maintenance_report();
+        $last_repair_report = pr_get_last_table_repair_report();
+        ?>
+        <table class="widefat striped" style="max-width:900px;margin:12px 0 18px">
+            <thead><tr><th>Tabulka</th><th>Stav</th></tr></thead>
+            <tbody>
+                <?php foreach(pr_get_plugin_tables() as $table): ?>
+                <tr>
+                    <td><code><?php echo esc_html($table); ?></code></td>
+                    <td><?php echo pr_db_table_exists($table) ? '✅ Existuje' : '❌ Chybí'; ?></td>
+                </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+
+        <?php if(!empty($missing_tables)): ?>
+            <div class="notice notice-warning inline"><p>Chybějící tabulky: <code><?php echo esc_html(implode(', ', $missing_tables)); ?></code></p></div>
+        <?php endif; ?>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;max-width:980px">
+            <div style="border:1px solid #c3c4c7;background:#fff;padding:16px;border-radius:6px">
+                <h3 style="margin-top:0">✅ Opravit / vytvořit tabulky</h3>
+                <p>Bezpečná akce. Vytvoří chybějící tabulky a doplní chybějící sloupce bez mazání dat.</p>
+                <form method="post">
+                    <?php wp_nonce_field('pr_db_maintenance','pr_db_maintenance_nonce'); ?>
+                    <input type="hidden" name="pr_db_action" value="repair_create">
+                    <?php submit_button('Opravit / vytvořit tabulky', 'primary', 'submit', false); ?>
+                </form>
+            </div>
+
+            <div style="border:1px solid #dba617;background:#fff;padding:16px;border-radius:6px">
+                <h3 style="margin-top:0">🧹 Vyčistit objednávky</h3>
+                <p>Smaže pouze objednávky, položky objednávek a vygenerované vstupenky. Akce a typy vstupenek zůstanou zachované, počty prodaných vstupenek se vynulují.</p>
+                <form method="post" onsubmit="return confirm('Opravdu smazat všechny objednávky a vstupenky? Akce a typy vstupenek zůstanou.');">
+                    <?php wp_nonce_field('pr_db_maintenance','pr_db_maintenance_nonce'); ?>
+                    <input type="hidden" name="pr_db_action" value="clean_orders">
+                    <p><label>Napište <code>CLEAN</code>: <input type="text" name="pr_db_confirm" class="regular-text" autocomplete="off"></label></p>
+                    <?php submit_button('Vyčistit objednávky', 'secondary', 'submit', false); ?>
+                </form>
+            </div>
+
+            <div style="border:1px solid #d63638;background:#fff;padding:16px;border-radius:6px">
+                <h3 style="margin-top:0;color:#b32d2e">⚠️ Kompletní reset databáze</h3>
+                <p><strong>Smaže všechny tabulky pluginu a znovu je vytvoří prázdné.</strong> Přijdete o akce, typy vstupenek, objednávky, vstupenky a šablony uložené v databázi.</p>
+                <form method="post" onsubmit="return confirm('Opravdu smazat a znovu vytvořit VŠECHNY databázové tabulky pluginu? Tato akce je nevratná.');">
+                    <?php wp_nonce_field('pr_db_maintenance','pr_db_maintenance_nonce'); ?>
+                    <input type="hidden" name="pr_db_action" value="reset_database">
+                    <p><label>Napište <code>DELETE</code>: <input type="text" name="pr_db_confirm" class="regular-text" autocomplete="off"></label></p>
+                    <?php submit_button('Smazat a znovu vytvořit databázi pluginu', 'delete', 'submit', false); ?>
+                </form>
+            </div>
+        </div>
+
+        <?php if(!empty($last_maintenance_report) || !empty($last_repair_report)): ?>
+            <details style="max-width:980px;margin-top:18px">
+                <summary>Technický detail poslední databázové údržby</summary>
+                <pre style="white-space:pre-wrap;background:#fff;border:1px solid #ccd0d4;padding:10px;max-height:320px;overflow:auto;"><?php echo esc_html(print_r(!empty($last_maintenance_report) ? $last_maintenance_report : $last_repair_report, true)); ?></pre>
+            </details>
+        <?php endif; ?>
     </div>
     <script>
     (function(){
