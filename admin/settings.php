@@ -64,6 +64,17 @@ function pr_admin_settings_page() {
         if (!$msg) $msg = '<div class="notice notice-success"><p>Nastavení uloženo.</p></div>';
     }
 
+    if (isset($_GET['pr_auto_repaired'])) {
+        $repair_status = sanitize_key($_GET['pr_auto_repaired']);
+        $repair_report = pr_get_last_table_repair_report();
+        if ($repair_status === 'success') {
+            $msg = '<div class="notice notice-success"><p>✅ Databázové tabulky byly opraveny / vytvořeny.</p></div>';
+        } else {
+            $missing = !empty($repair_report['missing']) ? $repair_report['missing'] : pr_get_missing_tables();
+            $msg = '<div class="notice notice-error"><p>❌ Oprava databáze selhala. Stále chybí: <code>' . esc_html(implode(', ', $missing)) . '</code></p></div>';
+        }
+    }
+
     if (isset($_POST['pr_db_maintenance_nonce']) && wp_verify_nonce($_POST['pr_db_maintenance_nonce'], 'pr_db_maintenance')) {
         $db_action = sanitize_key($_POST['pr_db_action'] ?? '');
 
@@ -299,7 +310,7 @@ function pr_admin_settings_page() {
 
         <hr style="margin:32px 0">
 
-        <h2>🛠️ Databáze pluginu</h2>
+        <h2 id="pr-db-maintenance">🛠️ Databáze pluginu</h2>
         <p>Tyto nástroje slouží k opravě chybějících tabulek nebo k vyčištění testovacích dat. Destruktivní akce vyžadují ruční potvrzení.</p>
 
         <?php
