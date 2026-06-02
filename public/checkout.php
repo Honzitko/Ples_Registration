@@ -72,6 +72,25 @@ function pr_ensure_orders_table_exists() {
     $checked = true;
 }
 
+
+function pr_release_reserved_lines($lines) {
+    foreach ($lines as $line) {
+        pr_release_type($line['type']->id, $line['qty']);
+    }
+}
+
+function pr_rollback_order_creation($order_id, $lines) {
+    global $wpdb;
+
+    pr_release_reserved_lines($lines);
+
+    $order_id = (int) $order_id;
+    if ($order_id) {
+        $wpdb->delete(PR_ORDER_ITEMS, ['order_id' => $order_id], ['%d']);
+        $wpdb->delete(PR_ORDERS, ['id' => $order_id], ['%d']);
+    }
+}
+
 function pr_insert_order_with_schema_retry($event_id, $order_ref, $var_sym, $name, $email, $phone, $street, $city, $postcode, $total) {
     global $wpdb;
 
@@ -157,11 +176,16 @@ function pr_ajax_submit_order() {
     $total = 0; $lines = [];
     foreach ($qtys as $type_id => $qty) {
         $type = pr_get_ticket_type($type_id);
-        if (!$type || $type->event_id != $event_id || !$type->active)
+        if (!$type || $type->event_id != $event_id || !$type->active) {
+            pr_release_reserved_lines($lines);
             pr_send_error('Neplatný typ vstupenky.');
-        if (!pr_reserve_type($type_id,$qty))
+        }
+        if (!pr_reserve_type($type_id,$qty)) {
+            pr_release_reserved_lines($lines);
             pr_send_error('Vstupenka „'.esc_html($type->name).'" již není v požadovaném počtu dostupná.');
-        $sub = $type->price * $qty; $total += $sub;
+        }
+        $sub = $type->price * $qty;
+        $total += $sub;
         $lines[] = ['type'=>$type,'qty'=>$qty,'subtotal'=>$sub];
     }
 
@@ -183,9 +207,7 @@ function pr_ajax_submit_order() {
     );
 
     if (!$inserted || !$order_id) {
-        foreach ($lines as $l) {
-            pr_release_type($l['type']->id, $l['qty']);
-        }
+        pr_release_reserved_lines($lines);
         error_log('PR order insert failed: ' . $db_error);
         $message = 'Objednávku se nepodařilo uložit. Zkuste to prosím znovu.';
         if (current_user_can('manage_options') && $db_error) {
@@ -196,13 +218,20 @@ function pr_ajax_submit_order() {
 
     // Create order items
     foreach ($lines as $l) {
-        $wpdb->insert(PR_ORDER_ITEMS,[
+        $inserted_item = $wpdb->insert(PR_ORDER_ITEMS,[
             'order_id'  => $order_id,
             'type_id'   => $l['type']->id,
             'type_name' => $l['type']->name,
             'unit_price'=> $l['type']->price,
             'quantity'  => $l['qty'],
         ],['%d','%d','%s','%f','%d']);
+
+        if ($inserted_item === false) {
+            $db_error = $wpdb->last_error;
+            pr_rollback_order_creation($order_id, $lines);
+            error_log('PR order item insert failed: ' . $db_error);
+            pr_send_error('Položky objednávky se nepodařilo uložit. Zkuste to prosím znovu.');
+        }
     }
 
     // Send email immediately — wrapped in try-catch so AJAX never fails on email problems.

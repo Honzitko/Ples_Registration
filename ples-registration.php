@@ -74,8 +74,8 @@ function pr_register_rewrites() {
 }
 
 add_action( 'wp_enqueue_scripts', function() {
-    wp_enqueue_style(  'pr-public', PR_URL . 'assets/css/public.css',  [], PR_VERSION );
-    wp_enqueue_script( 'pr-public', PR_URL . 'assets/js/public.js', ['jquery'], PR_VERSION, true );
+    wp_register_style(  'pr-public', PR_URL . 'assets/css/public.css', [], PR_VERSION );
+    wp_register_script( 'pr-public', PR_URL . 'assets/js/public.js', ['jquery'], PR_VERSION, true );
     wp_localize_script( 'pr-public', 'PR', [
         'ajax_url' => admin_url('admin-ajax.php'),
         'nonce'    => wp_create_nonce('pr_ajax'),
@@ -83,8 +83,11 @@ add_action( 'wp_enqueue_scripts', function() {
 } );
 
 add_action( 'admin_enqueue_scripts', function($hook) {
-    wp_enqueue_style(  'pr-admin', PR_URL . 'assets/css/admin.css',  [], PR_VERSION );
-    wp_enqueue_script( 'pr-admin', PR_URL . 'assets/js/admin.js', ['jquery'], PR_VERSION, true );
+    if (strpos((string) $hook, 'pr-') === false) {
+        return;
+    }
+
+    wp_enqueue_style( 'pr-admin', PR_URL . 'assets/css/admin.css', [], PR_VERSION );
 } );
 
 /**
