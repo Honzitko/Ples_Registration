@@ -78,6 +78,22 @@ function pr_bootstrap_schema() {
     error_log('PR schema bootstrap incomplete; missing tables: ' . implode(', ', $missing));
 }
 
+/**
+ * Lightweight schema guard for request paths that may run before plugins_loaded.
+ */
+function pr_bootstrap_checkout_schema_if_needed() {
+    if ( get_transient('pr_schema_ok') === PR_VERSION ) {
+        return true;
+    }
+
+    $checkout_tables_ready = pr_ensure_checkout_tables_exist();
+    if ( $checkout_tables_ready && empty(pr_get_missing_tables()) ) {
+        set_transient('pr_schema_ok', PR_VERSION, 12 * HOUR_IN_SECONDS);
+    }
+
+    return $checkout_tables_ready;
+}
+
 // Auto-repair: create tables if missing (runs once per version)
 add_action( 'admin_init', function() {
     if ( get_option('pr_db_version') !== PR_VERSION ) {
