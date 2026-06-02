@@ -103,6 +103,7 @@
 
 /* Buyer form */
 .pr-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.pr-field-full { grid-column: 1 / -1; }
 .pr-field label { display: block; font-size: .82rem; font-weight: 600; color: #444; margin-bottom: 4px; }
 .pr-field input  { width: 100%; padding: 10px 12px; border: 2px solid var(--pr-border); border-radius: 8px;
                    font-size: .95rem; outline: none; transition: border-color .15s; }

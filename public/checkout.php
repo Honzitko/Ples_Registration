@@ -29,6 +29,9 @@ function pr_ajax_submit_order() {
     $name     = sanitize_text_field($_POST['buyer_name']??'');
     $email    = sanitize_email($_POST['buyer_email']??'');
     $phone    = sanitize_text_field($_POST['buyer_phone']??'');
+    $street   = sanitize_text_field($_POST['buyer_street']??'');
+    $city     = sanitize_text_field($_POST['buyer_city']??'');
+    $postcode = sanitize_text_field($_POST['buyer_postcode']??'');
 
     $event = pr_get_event($event_id);
     if (!$event || $event->status !== 'active')
@@ -36,6 +39,12 @@ function pr_ajax_submit_order() {
 
     if (!$name || !is_email($email))
         pr_send_error('Vyplňte prosím jméno a platnou e-mailovou adresu.');
+
+    if ($phone && !preg_match('/^(?:\+\d{12}|\+\d{3} \d{3} \d{3} \d{3}|\d{9}|\d{3} \d{3} \d{3})$/', $phone))
+        pr_send_error('Telefon musí být ve formátu +XXXXXXXXXXXX, +XXX XXX XXX XXX, XXXXXXXXX nebo XXX XXX XXX.');
+
+    if (!$street || !$city || !$postcode)
+        pr_send_error('Vyplňte prosím ulici a čp, město a PSČ.');
 
     // Parse quantities
     $qtys = [];
@@ -68,9 +77,12 @@ function pr_ajax_submit_order() {
         'buyer_name' => $name,
         'buyer_email'=> $email,
         'buyer_phone'=> $phone,
+        'buyer_street'=> $street,
+        'buyer_city'=> $city,
+        'buyer_postcode'=> $postcode,
         'total_price'=> $total,
         'status'     => 'pending',
-    ],['%d','%s','%s','%s','%s','%s','%f','%s']);
+    ],['%d','%s','%s','%s','%s','%s','%s','%s','%s','%f','%s']);
     $order_id = $wpdb->insert_id;
 
     // Create order items
