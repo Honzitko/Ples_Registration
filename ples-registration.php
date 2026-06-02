@@ -58,6 +58,34 @@ function pr_activate() {
 }
 register_deactivation_hook( __FILE__, function() { flush_rewrite_rules(); } );
 
+add_action( 'upgrader_process_complete', 'pr_reverify_schema_after_plugin_upgrade', 10, 2 );
+function pr_reverify_schema_after_plugin_upgrade( $upgrader, $options ) {
+    if ( ! pr_upgrade_includes_this_plugin($options) ) {
+        return;
+    }
+
+    delete_transient('pr_schema_ok');
+    pr_create_tables();
+}
+
+function pr_upgrade_includes_this_plugin( $options ) {
+    if ( ! is_array($options) || ( isset($options['type']) && $options['type'] !== 'plugin' ) ) {
+        return false;
+    }
+
+    $plugin_basename = plugin_basename(__FILE__);
+
+    if ( isset($options['plugin']) && $options['plugin'] === $plugin_basename ) {
+        return true;
+    }
+
+    if ( isset($options['plugins']) && is_array($options['plugins']) ) {
+        return in_array($plugin_basename, $options['plugins'], true);
+    }
+
+    return false;
+}
+
 // Bootstrap schema early on every plugin load, with a short-lived success cache.
 add_action( 'plugins_loaded', 'pr_bootstrap_schema', 5 );
 function pr_bootstrap_schema() {
