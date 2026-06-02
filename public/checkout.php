@@ -16,6 +16,15 @@ function pr_is_valid_phone($phone) {
     return (bool) preg_match('/^(?:\+\d{12}|\+\d{3} \d{3} \d{3} \d{3}|\d{9}|\d{3} \d{3} \d{3})$/', $phone);
 }
 
+function pr_text_length($value) {
+    return function_exists('mb_strlen') ? mb_strlen($value) : strlen($value);
+}
+
+function pr_normalize_postcode($postcode) {
+    $digits = preg_replace('/\s+/', '', $postcode);
+    return substr($digits, 0, 3) . ' ' . substr($digits, 3, 2);
+}
+
 function pr_build_order_insert_payload($event_id, $order_ref, $var_sym, $name, $email, $phone, $street, $city, $postcode, $total) {
     $data = [
         'event_id'    => $event_id,
@@ -125,18 +134,16 @@ function pr_ajax_submit_order() {
     if ($phone && !pr_is_valid_phone($phone))
         pr_send_error('Telefon zadejte ve formátu +XXXXXXXXXXXX, +XXX XXX XXX XXX, XXXXXXXXX nebo XXX XXX XXX.');
 
-    $street_length = function_exists('mb_strlen') ? mb_strlen($street) : strlen($street);
-    if ($street_length < 2)
+    if (pr_text_length($street) < 2)
         pr_send_error('Vyplňte prosím ulici.');
 
-    $city_length = function_exists('mb_strlen') ? mb_strlen($city) : strlen($city);
-    if ($city_length < 2)
+    if (pr_text_length($city) < 2)
         pr_send_error('Vyplňte prosím město.');
 
     if (!preg_match('/^\d{3}\s?\d{2}$/', $postcode))
         pr_send_error('Neplatné PSČ. Použijte formát 123 45 nebo 12345.');
 
-    $postcode = substr(str_replace(' ', '', $postcode), 0, 3) . ' ' . substr(str_replace(' ', '', $postcode), 3, 2);
+    $postcode = pr_normalize_postcode($postcode);
 
     // Parse quantities
     $qtys = [];

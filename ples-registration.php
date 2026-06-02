@@ -105,22 +105,3 @@ function pr_preview_ticket_html() {
     $html = pr_render_ticket_page($tpl, $fake_order, $fake_event, $fake_ticket);
     echo $html;
 }
-
-// AJAX: live price summary
-add_action( 'wp_ajax_nopriv_pr_get_summary', 'pr_ajax_get_summary' );
-add_action( 'wp_ajax_pr_get_summary',        'pr_ajax_get_summary' );
-function pr_ajax_get_summary() {
-    check_ajax_referer('pr_ajax','nonce');
-    $event_id = (int)( $_POST['event_id'] ?? 0 );
-    $items    = json_decode( stripslashes( $_POST['items'] ?? '[]' ), true );
-    if ( ! is_array($items) ) wp_send_json_error();
-    $total = 0; $lines = [];
-    foreach ( $items as $item ) {
-        $type = pr_get_ticket_type( (int)$item['type_id'] );
-        $qty  = (int)$item['qty'];
-        if ( ! $type || $type->event_id != $event_id || $qty <= 0 ) continue;
-        $sub = $type->price * $qty; $total += $sub;
-        $lines[] = ['name'=>$type->name,'qty'=>$qty,'price'=>$type->price,'subtotal'=>$sub];
-    }
-    wp_send_json_success(['lines'=>$lines,'total'=>$total]);
-}

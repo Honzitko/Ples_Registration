@@ -2,15 +2,24 @@
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 function pr_generate_order_ref() {
-    return 'PR-' . strtoupper( substr( md5( uniqid( mt_rand(), true ) ), 0, 10 ) );
+    global $wpdb;
+
+    do {
+        $ref = 'PR-' . strtoupper(bin2hex(random_bytes(5)));
+        $exists = $wpdb->get_var($wpdb->prepare("SELECT id FROM " . PR_ORDERS . " WHERE order_ref=%s", $ref));
+    } while ($exists);
+
+    return $ref;
 }
 
 function pr_generate_var_symbol() {
     global $wpdb;
+
     do {
-        $vs = str_pad( mt_rand(10000000, 99999999), 8, '0', STR_PAD_LEFT );
-        $exists = $wpdb->get_var( $wpdb->prepare("SELECT id FROM ".PR_ORDERS." WHERE var_symbol=%s",$vs) );
+        $vs = (string) random_int(10000000, 99999999);
+        $exists = $wpdb->get_var($wpdb->prepare("SELECT id FROM " . PR_ORDERS . " WHERE var_symbol=%s", $vs));
     } while ($exists);
+
     return $vs;
 }
 
@@ -212,21 +221,43 @@ function pr_release_type($type_id,$qty) {
  */
 function pr_generate_tickets($order_id) {
     global $wpdb;
-    $items = pr_get_order_items($order_id);
+
+    $order_id = (int) $order_id;
     $order = pr_get_order($order_id);
+    if (!$order) {
+        return false;
+    }
+
+    $items = pr_get_order_items($order_id);
+    if (!$items) {
+        return true;
+    }
+
+    $existing_counts = [];
+    $rows = $wpdb->get_results($wpdb->prepare(
+        "SELECT order_item_id, COUNT(*) AS ticket_count FROM " . PR_TICKETS . " WHERE order_id=%d GROUP BY order_item_id",
+        $order_id
+    ));
+    foreach ($rows as $row) {
+        $existing_counts[(int) $row->order_item_id] = (int) $row->ticket_count;
+    }
+
     foreach ($items as $item) {
-        for ($i=1; $i<=$item->quantity; $i++) {
-            $wpdb->insert(PR_TICKETS,[
-                'order_id'     => $order_id,
-                'order_item_id'=> $item->id,
-                'event_id'     => $order->event_id,
-                'type_id'      => $item->type_id,
-                'type_name'    => $item->type_name,
-                'qr_token'     => pr_generate_qr_token(),
-                'seq_number'   => $i,
-            ],['%d','%d','%d','%d','%s','%s','%d']);
+        $existing = $existing_counts[(int) $item->id] ?? 0;
+        for ($i = $existing + 1; $i <= (int) $item->quantity; $i++) {
+            $wpdb->insert(PR_TICKETS, [
+                'order_id'      => $order_id,
+                'order_item_id' => $item->id,
+                'event_id'      => $order->event_id,
+                'type_id'       => $item->type_id,
+                'type_name'     => $item->type_name,
+                'qr_token'      => pr_generate_qr_token(),
+                'seq_number'    => $i,
+            ], ['%d', '%d', '%d', '%d', '%s', '%s', '%d']);
         }
     }
+
+    return true;
 }
 
 /**
