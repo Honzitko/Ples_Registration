@@ -43,6 +43,10 @@ function pr_db_column_exists($table, $column) {
 function pr_repair_order_schema() {
     global $wpdb;
 
+    if (!pr_db_table_exists(PR_ORDERS)) {
+        return false;
+    }
+
     $table_sql = pr_quote_db_identifier(PR_ORDERS);
     $columns = [
         'buyer_street'   => "ALTER TABLE {$table_sql} ADD COLUMN `buyer_street` VARCHAR(255) NOT NULL DEFAULT '' AFTER `buyer_phone`",
@@ -57,14 +61,18 @@ function pr_repair_order_schema() {
             $wpdb->query($sql);
         }
     }
+
+    return true;
 }
 
-function pr_create_tables() {
-    global $wpdb;
-    $c = $wpdb->get_charset_collate();
-    require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+/**
+ * Return the canonical CREATE TABLE statements for all plugin tables.
+ */
+function pr_get_table_schemas($charset_collate = '') {
+    $c = $charset_collate;
 
-    dbDelta("CREATE TABLE " . PR_EVENTS . " (
+    return [
+        PR_EVENTS => "CREATE TABLE " . PR_EVENTS . " (
         id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
         name        VARCHAR(255) NOT NULL,
         description TEXT,
@@ -73,9 +81,9 @@ function pr_create_tables() {
         status      ENUM('draft','active','closed') NOT NULL DEFAULT 'draft',
         created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (id)
-    ) $c;");
+    ) $c;",
 
-    dbDelta("CREATE TABLE " . PR_TICKET_TYPES . " (
+        PR_TICKET_TYPES => "CREATE TABLE " . PR_TICKET_TYPES . " (
         id           INT UNSIGNED NOT NULL AUTO_INCREMENT,
         event_id     INT UNSIGNED NOT NULL,
         name         VARCHAR(100) NOT NULL,
@@ -88,13 +96,13 @@ function pr_create_tables() {
         template_id  INT UNSIGNED NOT NULL DEFAULT 0,
         PRIMARY KEY (id),
         KEY event_id (event_id)
-    ) $c;");
+    ) $c;",
 
-    dbDelta("CREATE TABLE " . PR_ORDERS . " (
+        PR_ORDERS => "CREATE TABLE " . PR_ORDERS . " (
         id           INT UNSIGNED NOT NULL AUTO_INCREMENT,
         event_id     INT UNSIGNED NOT NULL,
-        order_ref    VARCHAR(64) NOT NULL UNIQUE,
-        var_symbol   VARCHAR(10) NOT NULL UNIQUE,
+        order_ref    VARCHAR(64) NOT NULL,
+        var_symbol   VARCHAR(10) NOT NULL,
         buyer_name   VARCHAR(255) NOT NULL,
         buyer_email  VARCHAR(255) NOT NULL,
         buyer_phone  VARCHAR(30),
@@ -109,12 +117,14 @@ function pr_create_tables() {
         paid_at      DATETIME,
         created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (id),
+        UNIQUE KEY order_ref (order_ref),
+        UNIQUE KEY var_symbol_unique (var_symbol),
         KEY event_id (event_id),
         KEY status (status),
         KEY var_symbol (var_symbol)
-    ) $c;");
+    ) $c;",
 
-    dbDelta("CREATE TABLE " . PR_ORDER_ITEMS . " (
+        PR_ORDER_ITEMS => "CREATE TABLE " . PR_ORDER_ITEMS . " (
         id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
         order_id   INT UNSIGNED NOT NULL,
         type_id    INT UNSIGNED NOT NULL,
@@ -123,26 +133,26 @@ function pr_create_tables() {
         quantity   INT UNSIGNED NOT NULL DEFAULT 1,
         PRIMARY KEY (id),
         KEY order_id (order_id)
-    ) $c;");
+    ) $c;",
 
-    dbDelta("CREATE TABLE " . PR_TICKETS . " (
+        PR_TICKETS => "CREATE TABLE " . PR_TICKETS . " (
         id            INT UNSIGNED NOT NULL AUTO_INCREMENT,
         order_id      INT UNSIGNED NOT NULL,
         order_item_id INT UNSIGNED NOT NULL,
         event_id      INT UNSIGNED NOT NULL,
         type_id       INT UNSIGNED NOT NULL,
         type_name     VARCHAR(100) NOT NULL,
-        qr_token      VARCHAR(64) NOT NULL UNIQUE,
+        qr_token      VARCHAR(64) NOT NULL,
         seq_number    INT UNSIGNED NOT NULL,
         checked_in    TINYINT(1) NOT NULL DEFAULT 0,
         checked_in_at DATETIME,
         PRIMARY KEY (id),
+        UNIQUE KEY qr_token (qr_token),
         KEY order_id (order_id),
-        KEY qr_token (qr_token),
         KEY event_id (event_id)
-    ) $c;");
+    ) $c;",
 
-    dbDelta("CREATE TABLE " . PR_TEMPLATES . " (
+        PR_TEMPLATES => "CREATE TABLE " . PR_TEMPLATES . " (
         id           INT UNSIGNED NOT NULL AUTO_INCREMENT,
         name         VARCHAR(100) NOT NULL,
         description  VARCHAR(255),
@@ -155,9 +165,79 @@ function pr_create_tables() {
         updated_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         PRIMARY KEY (id),
         KEY oob_key (oob_key)
-    ) $c;");
+    ) $c;",
+    ];
+}
+
+/**
+ * Create or update one plugin table and verify that it exists afterwards.
+ *
+ * dbDelta() is still used for normal WordPress migrations, but some hosts fail
+ * silently during AJAX checkout. The direct CREATE TABLE IF NOT EXISTS fallback
+ * prevents customers from being blocked by a missing wp_pr_orders table.
+ */
+function pr_create_or_update_table($table, $schema) {
+    global $wpdb;
+
+    require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+
+    dbDelta($schema);
+
+    if (!pr_db_table_exists($table)) {
+        $fallback_schema = preg_replace('/^\s*CREATE\s+TABLE\s+/i', 'CREATE TABLE IF NOT EXISTS ', $schema, 1);
+        $wpdb->query($fallback_schema);
+    }
+
+    return pr_db_table_exists($table);
+}
+
+function pr_create_tables() {
+    global $wpdb;
+    $schemas = pr_get_table_schemas($wpdb->get_charset_collate());
+
+    foreach ($schemas as $table => $schema) {
+        pr_create_or_update_table($table, $schema);
+    }
 
     pr_repair_order_schema();
+}
+
+/**
+ * Ensure all tables needed for checkout exist before accepting an order.
+ */
+function pr_ensure_checkout_tables_exist() {
+    global $wpdb;
+
+    $schemas = pr_get_table_schemas($wpdb->get_charset_collate());
+    $required_tables = [PR_ORDERS, PR_ORDER_ITEMS, PR_TICKETS];
+    $missing_tables = [];
+
+    foreach ($required_tables as $table) {
+        if (!pr_db_table_exists($table)) {
+            $missing_tables[] = $table;
+        }
+    }
+
+    if (!$missing_tables) {
+        pr_repair_order_schema();
+        return true;
+    }
+
+    foreach ($missing_tables as $table) {
+        pr_create_or_update_table($table, $schemas[$table]);
+    }
+
+    pr_repair_order_schema();
+    pr_reset_orders_address_columns_cache();
+
+    foreach ($required_tables as $table) {
+        if (!pr_db_table_exists($table)) {
+            error_log('PR checkout schema repair failed; missing table: ' . $table . ' Last DB error: ' . $wpdb->last_error);
+            return false;
+        }
+    }
+
+    return true;
 }
 
 function pr_set_defaults() {
