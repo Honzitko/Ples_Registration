@@ -86,6 +86,11 @@ function pr_ajax_submit_order() {
 
     // Send email immediately — wrapped in try-catch so AJAX never fails on email problems
     $order = pr_get_order($order_id);
+    if ($order) {
+        // Use the already validated submitted address for this request so wp_mail()
+        // always receives the same recipient the buyer entered in the form.
+        $order->buyer_email = $email;
+    }
     $items = pr_get_order_items($order_id);
     $email_sent  = false;
     $email_error = '';
