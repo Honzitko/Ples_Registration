@@ -140,6 +140,9 @@ function pr_admin_orders_page() {
                         <?php echo esc_html($o->buyer_name); ?>
                         <br><small><?php echo esc_html($o->buyer_email); ?></small>
                         <?php if($o->buyer_phone): ?><br><small><?php echo esc_html($o->buyer_phone); ?></small><?php endif; ?>
+                        <?php if($o->buyer_street || $o->buyer_city || $o->buyer_postcode): ?>
+                            <br><small><?php echo esc_html(trim(($o->buyer_street ?? '') . ', ' . ($o->buyer_city ?? '') . ' ' . ($o->buyer_postcode ?? ''), ', ')); ?></small>
+                        <?php endif; ?>
                     </td>
                     <td><code style="font-size:13px;font-weight:bold"><?php echo esc_html($o->var_symbol); ?></code></td>
                     <td><strong><?php echo esc_html(pr_format_price($o->total_price)); ?></strong></td>
@@ -190,9 +193,10 @@ function pr_export_orders_csv() {
     header('Content-Disposition: attachment; filename="objednavky-'.date('Y-m-d').'.csv"');
     $f = fopen('php://output','w');
     fprintf($f,chr(0xEF).chr(0xBB).chr(0xBF));
-    fputcsv($f,['Objednávka','Akce','Jméno','E-mail','Telefon','VS','Částka','Stav','Poznámka','Datum'],';');
+    fputcsv($f,['Objednávka','Akce','Jméno','E-mail','Telefon','Ulice a čp','Město','PSČ','VS','Částka','Stav','Poznámka','Datum'],';');
     foreach($orders as $o) {
         fputcsv($f,[$o->order_ref,$o->event_name,$o->buyer_name,$o->buyer_email,$o->buyer_phone??'',
+                    $o->buyer_street??'',$o->buyer_city??'',$o->buyer_postcode??'',
                     $o->var_symbol,$o->total_price,$o->status,$o->payment_note??'',
                     date('j.n.Y H:i',strtotime($o->created_at))],';');
     }

@@ -68,15 +68,27 @@ jQuery(function($){
     var $btn    = $form.find('.pr-btn-submit');
     var $msg    = $('#pr-msg-'+eventId);
 
-    var name  = $form.find('[name="buyer_name"]').val().trim();
-    var email = $form.find('[name="buyer_email"]').val().trim();
+    var name     = $form.find('[name="buyer_name"]').val().trim();
+    var email    = $form.find('[name="buyer_email"]').val().trim();
+    var phone    = $form.find('[name="buyer_phone"]').val().trim();
+    var street   = $form.find('[name="buyer_street"]').val().trim();
+    var city     = $form.find('[name="buyer_city"]').val().trim();
+    var postcode = $form.find('[name="buyer_postcode"]').val().trim();
+    var phonePattern = /^(?:\+\d{12}|\+\d{3} \d{3} \d{3} \d{3}|\d{9}|\d{3} \d{3} \d{3})$/;
+
     if (!name || !email) {
       showMsg($msg, 'Vyplňte prosím jméno a e-mail.', 'error'); return;
     }
+    if (phone && !phonePattern.test(phone)) {
+      showMsg($msg, 'Telefon musí být ve formátu +XXXXXXXXXXXX, +XXX XXX XXX XXX, XXXXXXXXX nebo XXX XXX XXX.', 'error'); return;
+    }
+    if (!street || !city || !postcode) {
+      showMsg($msg, 'Vyplňte prosím ulici a čp, město a PSČ.', 'error'); return;
+    }
 
     var data = { action:'pr_submit_order', nonce: PR.nonce, event_id: eventId,
-                 buyer_name: name, buyer_email: email,
-                 buyer_phone: $form.find('[name="buyer_phone"]').val().trim(), qty: {} };
+                 buyer_name: name, buyer_email: email, buyer_phone: phone,
+                 buyer_street: street, buyer_city: city, buyer_postcode: postcode, qty: {} };
 
     $form.find('.pr-qty-input').each(function(){
       var qty = parseInt($(this).val())||0;
