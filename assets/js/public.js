@@ -22,14 +22,12 @@ jQuery(function($){
 
   function updateSummary($form) {
     var eventId = $form.data('event');
-    var items   = [];
     var hasQty  = false;
 
     $form.find('.pr-qty-input').each(function(){
       var qty = parseInt($(this).val())||0;
       if (qty > 0) {
         hasQty = true;
-        items.push({ type_id: $(this).data('type'), qty: qty });
       }
     });
 

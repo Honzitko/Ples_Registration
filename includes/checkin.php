@@ -33,7 +33,7 @@ function pr_process_checkin( $token ) {
     if ( ! $ticket ) {
         return ['status' => 'error', 'message' => 'Vstupenka nenalezena.', 'color' => 'red'];
     }
-    if ( $ticket->order_status !== 'paid' && $ticket->order_status !== 'used' ) {
+    if ( $ticket->order_status !== 'paid' ) {
         return ['status' => 'invalid', 'message' => 'Vstupenka není zaplacena. Stav objednávky: ' . $ticket->order_status, 'color' => 'orange', 'ticket' => $ticket];
     }
     if ( $ticket->checked_in ) {
