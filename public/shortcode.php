@@ -13,6 +13,9 @@ function pr_shortcode($atts) {
     $types = pr_get_ticket_types($event_id);
     if (empty($types)) return '<p class="pr-error">Nejsou definovány žádné typy vstupenek.</p>';
 
+    wp_enqueue_style('pr-public');
+    wp_enqueue_script('pr-public');
+
     ob_start();
     ?>
     <div class="pr-form-wrap" id="pr-form-<?php echo $event_id; ?>">

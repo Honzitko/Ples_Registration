@@ -21,38 +21,29 @@ jQuery(function($){
   // ── Update summary ─────────────────────────────────────────────────────────
 
   function updateSummary($form) {
-    var eventId = $form.data('event');
-    var hasQty  = false;
-
-    $form.find('.pr-qty-input').each(function(){
-      var qty = parseInt($(this).val())||0;
-      if (qty > 0) {
-        hasQty = true;
-      }
-    });
-
+    var eventId  = $form.data('event');
     var $summary = $('#pr-summary-'+eventId);
     var $buyer   = $('#pr-buyer-'+eventId);
     var $submit  = $('#pr-submit-'+eventId);
+    var lines    = [];
+    var total    = 0;
 
-    if (!hasQty) {
+    $form.find('.pr-qty-input').each(function(){
+      var $input = $(this);
+      var qty = parseInt($input.val(), 10) || 0;
+      if (!qty) return;
+
+      var price = parseFloat($input.data('price')) || 0;
+      var sub   = qty * price;
+      total    += sub;
+      lines.push('<div class="pr-summary-line"><span>'+escHtml($input.data('name'))+' × '+qty+'</span><span>'+formatPrice(sub)+'</span></div>');
+    });
+
+    if (!lines.length) {
       $summary.hide(); $buyer.hide(); $submit.hide(); return;
     }
 
-    // Build summary locally (fast)
-    var lines = '';
-    var total = 0;
-    $form.find('.pr-qty-input').each(function(){
-      var qty = parseInt($(this).val())||0;
-      if (!qty) return;
-      var price = parseFloat($(this).data('price'))||0;
-      var name  = $(this).data('name');
-      var sub   = qty * price;
-      total    += sub;
-      lines    += '<div class="pr-summary-line"><span>'+escHtml(name)+' × '+qty+'</span><span>'+formatPrice(sub)+'</span></div>';
-    });
-
-    $('#pr-summary-lines-'+eventId).html(lines);
+    $('#pr-summary-lines-'+eventId).html(lines.join(''));
     $('#pr-total-'+eventId).text(formatPrice(total));
     $summary.show(); $buyer.show(); $submit.show();
   }
