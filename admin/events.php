@@ -9,7 +9,9 @@ function pr_admin_events_page() {
     // Repair tables
     if ( isset($_GET['action']) && $_GET['action']==='repair' && check_admin_referer('pr_repair') ) {
         pr_create_tables();
-        wp_redirect(admin_url('admin.php?page=pr-events&repaired=1'));
+        $missing = pr_get_missing_tables();
+        $repair_status = empty($missing) ? 'success' : 'failed';
+        wp_redirect(admin_url('admin.php?page=pr-events&repaired=' . $repair_status));
         exit;
     }
 
@@ -104,7 +106,24 @@ function pr_admin_events_page() {
         <?php endif; ?>
 
         <?php if(isset($_GET['repaired'])): ?>
-        <div class="notice notice-success"><p>✅ Tabulky byly znovu vytvořeny. Zkuste znovu vytvořit akci.</p></div>
+            <?php $repair_report = pr_get_last_table_repair_report(); ?>
+            <?php if($_GET['repaired'] === 'success'): ?>
+                <div class="notice notice-success"><p>✅ Databázové tabulky byly zkontrolovány/vytvořeny. Zkuste akci zopakovat.</p></div>
+            <?php else: ?>
+                <div class="notice notice-error">
+                    <p><strong>❌ Databázové tabulky se nepodařilo vytvořit.</strong></p>
+                    <?php if(!empty($repair_report['missing'])): ?>
+                        <p>Stále chybí: <code><?php echo esc_html(implode(', ', $repair_report['missing'])); ?></code></p>
+                    <?php endif; ?>
+                    <p>Požádejte hosting o kontrolu, že databázový uživatel WordPressu má práva <code>CREATE TABLE</code>, <code>ALTER TABLE</code>, <code>SHOW TABLES</code> a <code>SHOW COLUMNS</code>.</p>
+                    <?php if(!empty($repair_report['report'])): ?>
+                        <details>
+                            <summary>Technický detail pro podporu hostingu</summary>
+                            <pre style="white-space:pre-wrap;background:#fff;border:1px solid #ccd0d4;padding:10px;max-height:280px;overflow:auto;"><?php echo esc_html(print_r($repair_report, true)); ?></pre>
+                        </details>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
         <?php endif; ?>
 
         <p style="margin-bottom:16px">
