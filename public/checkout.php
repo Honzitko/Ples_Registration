@@ -1,8 +1,11 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-add_action('wp_ajax_nopriv_pr_submit_order','pr_ajax_submit_order');
-add_action('wp_ajax_pr_submit_order',       'pr_ajax_submit_order');
+add_action('plugins_loaded', 'pr_register_checkout_ajax_hooks', 10);
+function pr_register_checkout_ajax_hooks() {
+    add_action('wp_ajax_nopriv_pr_submit_order','pr_ajax_submit_order');
+    add_action('wp_ajax_pr_submit_order',       'pr_ajax_submit_order');
+}
 
 /**
  * Send error response while ensuring no buffered output corrupts JSON.

@@ -68,6 +68,7 @@ function pr_admin_settings_page() {
         $db_action = sanitize_key($_POST['pr_db_action'] ?? '');
 
         if ($db_action === 'repair_create') {
+            delete_transient('pr_schema_ok');
             pr_create_tables();
             $missing = pr_get_missing_tables();
             $msg = empty($missing)

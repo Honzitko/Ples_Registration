@@ -58,9 +58,30 @@ function pr_activate() {
 }
 register_deactivation_hook( __FILE__, function() { flush_rewrite_rules(); } );
 
+// Bootstrap schema early on every plugin load, with a short-lived success cache.
+add_action( 'plugins_loaded', 'pr_bootstrap_schema', 5 );
+function pr_bootstrap_schema() {
+    if ( get_transient('pr_schema_ok') === PR_VERSION ) {
+        return;
+    }
+
+    if ( ! pr_db_table_exists(PR_ORDERS) ) {
+        pr_create_tables();
+    }
+
+    $missing = pr_get_missing_tables();
+    if ( empty($missing) ) {
+        set_transient('pr_schema_ok', PR_VERSION, 12 * HOUR_IN_SECONDS);
+        return;
+    }
+
+    error_log('PR schema bootstrap incomplete; missing tables: ' . implode(', ', $missing));
+}
+
 // Auto-repair: create tables if missing (runs once per version)
 add_action( 'admin_init', function() {
     if ( get_option('pr_db_version') !== PR_VERSION ) {
+        delete_transient('pr_schema_ok');
         pr_create_tables();
         pr_set_defaults();
         update_option('pr_db_version', PR_VERSION);
